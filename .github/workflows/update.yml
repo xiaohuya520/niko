@@ -1,0 +1,41 @@
+name: Update NiKo data
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # 每 30 分钟（GitHub 免费账户可能有几分钟排队延迟，属正常）
+  workflow_dispatch:         # 允许在 Actions 页面手动点 "Run workflow" 立即测试
+
+permissions:
+  contents: write
+
+concurrency:
+  group: niko-data
+  cancel-in-progress: false   # 上一次没跑完就排队，避免并发写冲突
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run pipeline
+        run: python run.py
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config core.quotepath false
+          git add data.json
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "auto: update NiKo data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi
