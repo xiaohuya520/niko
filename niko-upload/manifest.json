@@ -1,0 +1,19 @@
+{
+  "name": "NiKo 赛事跟踪 · Team Falcons",
+  "short_name": "NIKO",
+  "description": "NiKo 与 Team Falcons 的赛程、比分与个人状态跟踪",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090b",
+  "theme_color": "#08090b",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
