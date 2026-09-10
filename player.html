@@ -38,6 +38,7 @@
   --amber2:#8B5CF6;
   --amber-bg:#ECEAFE;
   --cyan:#1FB6C9;
+  --xh:#00FF91;            /* NiKo 准星自定义绿（游戏内实际颜色 rgb 0,255,145）*/
   --win:#15B981;
   --win-bg:#DCF6EC;
   --loss:#F0566E;
@@ -292,10 +293,19 @@ a{color:inherit;text-decoration:none}
   padding:4px 11px;display:inline-block;margin-top:8px;letter-spacing:.08em;font-weight:600;border-radius:999px}
 .tc .pdesc{font-size:12px;color:var(--ink2);margin-top:7px;line-height:1.5}
 
-/* === 准星练习 === */
-.xh{display:grid;place-items:center;background:var(--grad-soft);
-  border:1px solid var(--line);border-radius:20px;height:140px;margin-top:11px;position:relative;overflow:hidden}
-.xh i{position:absolute;background:var(--amber);border-radius:1px}
+/* === 准星（还原 NiKo 游戏内实际准星：深色画面 + 绿色细准星）=== */
+.xh{display:grid;place-items:center;position:relative;overflow:hidden;
+  height:152px;margin-top:11px;border-radius:20px;
+  background:radial-gradient(120% 95% at 50% 0%, #242949 0%, #141830 55%, #0B0E1C 100%);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:inset 0 0 70px rgba(0,0,0,.6)}
+.xh::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-size:38px 38px;
+  mask-image:radial-gradient(closest-side,#000 60%,transparent)}
+.xh i{position:absolute;background:var(--xh);border-radius:1px;
+  box-shadow:0 0 6px rgba(0,255,145,.55)}
 
 /* === 页脚 === */
 .foot{margin-top:36px;padding-top:20px;border-top:1px solid var(--line-soft);
@@ -553,21 +563,27 @@ function startCountdown(target, onChange){
 function drawCrosshair(x, boxId){
   const box = document.getElementById(boxId || 'xhBox');
   if(!box || !x || !x.style) return;
-  const len = 6 + Number(x.size || 1) * 2;
-  const th = Number(x.thickness || 1);
-  const gap = Math.abs(Number(x.gap || 0));
+  // 还原 NiKo 游戏内实际准星：经典静态 style 4 / size 1 / gap -4 /
+  // 粗细 0 / 无中心点 / 无描边 / 自定义绿 #00FF91。
+  // 关键：gap 是【负值】，四根线要交汇重叠在中心，而不是在中间留一道缝隙。
+  const U  = 3;                                    // 1 单位 ≈ 3px
+  const sz = Number(x.size || 1);
+  const gp = Math.min(0, Number(x.gap || 0));      // 只认负值（负=交汇）
+  const th = Math.max(2, Number(x.thickness || 0) + 1);
+  const R  = Math.max(7, (sz + Math.abs(gp)) * U); // 单臂长度
+  const yes = v => v === 'Yes' || v === '是' || v === true;
   const c = document.createElement('div');
   c.style.cssText = 'position:relative;width:0;height:0';
-  const mk = () => { const i = document.createElement('i'); return i; };
-  // 用四个小方块模拟 CS style 4 准星
-  [[0,-gap-len],[0,gap],[-gap-len,0],[gap,0]].forEach(([lx,ly]) => {
-    const i = mk();
-    i.style.width = (lx === 0 ? th : len) + 'px';
-    i.style.height = (lx === 0 ? len : th) + 'px';
-    i.style.left = lx + 'px';
-    i.style.top = ly + 'px';
+  const bar = (w, h, l, t) => {
+    const i = document.createElement('i');
+    i.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + l + 'px;top:' + t + 'px';
     c.appendChild(i);
-  });
+  };
+  bar(th, R, -th / 2, -R);      // 上
+  bar(th, R, -th / 2, 0);       // 下
+  bar(R, th, -R, -th / 2);      // 左
+  bar(R, th, 0, -th / 2);       // 右
+  if(yes(x.dot)) bar(th, th, -th / 2, -th / 2);   // NiKo 无中心点，此行不会触发
   box.innerHTML = ''; box.appendChild(c);
 }
 
@@ -636,6 +652,7 @@ function render(){
       <div class="xh" id="xhBox"></div>
       <div class="kv" style="margin-top:10px">
         <div class="kv-row"><span>参数</span><b>样式 ${esc(x.style||'—')} · 长度 ${esc(x.size||'—')} · 粗细 ${esc(x.thickness||'—')} · 间隙 ${esc(x.gap||'—')}</b></div>
+        <div class="kv-row"><span>颜色</span><b><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#00FF91;vertical-align:middle;margin-right:6px"></i>自定义绿 #00FF91${(x.outline==='No'||x.outline==='否')?' · 无描边':''}${(x.dot==='No'||x.dot==='否')?' · 无中心点':''}</b></div>
         <div class="kv-row"><span>分享码</span><b style="font-family:var(--mono);font-size:11px">${esc(P.crosshair_sharecode||'—')}</b></div>
       </div>
     </div>` : '';
