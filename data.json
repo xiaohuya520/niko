@@ -137,74 +137,9 @@
       }
     ],
     "note": "个人 rating 数据来自 HLTV（仅逐场核对过的 5 场，其余留空不编造）；赛程与系列赛比分来自 Liquipedia。时区统一按 UTC 存储，前端转换为北京时间。",
-    "updated": "2026-09-09T23:33:46+00:00"
+    "updated": "2026-09-10T01:36:26+00:00"
   },
   "recent_matches": [
-    {
-      "date": "2026-09-05T14:00:00Z",
-      "opponent": "Spirit",
-      "score": "0-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "BLAST 波尔图公开赛",
-      "stage": "",
-      "niko": {
-        "ratings": [
-          0.72,
-          0.89
-        ]
-      }
-    },
-    {
-      "date": "2026-09-04T14:00:00Z",
-      "opponent": "G2 Esports",
-      "score": "2-0",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 波尔图公开赛",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-08-31T15:35:00Z",
-      "opponent": "MOUZ",
-      "score": "1-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "BLAST 波尔图公开赛",
-      "stage": "",
-      "niko": {
-        "ratings": [
-          0.38
-        ]
-      }
-    },
-    {
-      "date": "2026-08-29T16:45:00Z",
-      "opponent": "Legacy",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 波尔图公开赛",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-08-27T17:10:00Z",
-      "opponent": "Lynn Vision Gaming",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 波尔图公开赛",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
     {
       "date": "2026-08-21T13:50:00Z",
       "opponent": "Legacy",
@@ -558,162 +493,6 @@
       }
     },
     {
-      "date": "2026-03-27T16:35:00Z",
-      "opponent": "PARIVISION",
-      "score": "0-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "BLAST 公开赛 鹿特丹站",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-03-23T13:30:00Z",
-      "opponent": "FURIA",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 公开赛 鹿特丹站",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-03-22T11:00:00Z",
-      "opponent": "TYLOO",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 公开赛 鹿特丹站",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-03-20T17:15:00Z",
-      "opponent": "Natus Vincere",
-      "score": "1-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "BLAST 公开赛 鹿特丹站",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-03-18T10:00:00Z",
-      "opponent": "NRG",
-      "score": "2-0",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "BLAST 公开赛 鹿特丹站",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-20T08:00:00Z",
-      "opponent": "PARIVISION",
-      "score": "1-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "PGL 克卢日-纳波卡 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-16T17:10:00Z",
-      "opponent": "FURIA",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "PGL 克卢日-纳波卡 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-15T10:35:00Z",
-      "opponent": "FaZe Clan",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "PGL 克卢日-纳波卡 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-14T14:35:00Z",
-      "opponent": "3DMAX",
-      "score": "2-0",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "PGL 克卢日-纳波卡 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-03T19:10:00Z",
-      "opponent": "MOUZ",
-      "score": "0-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "IEM 克拉科夫 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-03T13:00:00Z",
-      "opponent": "3DMAX",
-      "score": "2-0",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "IEM 克拉科夫 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-02T15:30:00Z",
-      "opponent": "NRG",
-      "score": "2-1",
-      "result": "W",
-      "bo": "Bo3",
-      "event": "IEM 克拉科夫 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
-      "date": "2026-02-01T13:00:00Z",
-      "opponent": "Aurora Gaming",
-      "score": "1-2",
-      "result": "L",
-      "bo": "Bo3",
-      "event": "IEM 克拉科夫 2026",
-      "stage": "",
-      "niko": {
-        "ratings": []
-      }
-    },
-    {
       "date": "2026-01-25T15:00:00Z",
       "opponent": "PARIVISION",
       "score": "0-3",
@@ -849,11 +628,11 @@
   "year_stats": {
     "span": "近一年",
     "from": "2025-09-12",
-    "to": "2026-09-05",
-    "matches": 58,
-    "wins": 41,
-    "losses": 17,
-    "win_rate": 70.7,
-    "events": 13
+    "to": "2026-08-21",
+    "matches": 40,
+    "wins": 30,
+    "losses": 10,
+    "win_rate": 75.0,
+    "events": 9
   }
 }
