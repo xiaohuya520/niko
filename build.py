@@ -886,7 +886,6 @@ def build_page(fname, pid, title, js, desc):
 <!-- iOS 主屏图标：补齐多档高分辨率尺寸，系统会自动挑最清晰的一张 -->
 <link rel="apple-touch-icon" sizes="180x180" href="assets/pixel/apple-touch-icon.png?v=3">
 <link rel="apple-touch-icon" sizes="152x152" href="assets/pixel/apple-touch-icon-152.png?v=3">
-<link rel="apple-touch-icon" sizes="1024x1024" href="assets/pixel/icon-1024.png?v=3">
 <meta name="apple-mobile-web-app-title" content="NIKO">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -936,7 +935,6 @@ def main():
 <!-- iOS 主屏图标：补齐多档高分辨率尺寸，系统会自动挑最清晰的一张 -->
 <link rel="apple-touch-icon" sizes="180x180" href="assets/pixel/apple-touch-icon.png?v=3">
 <link rel="apple-touch-icon" sizes="152x152" href="assets/pixel/apple-touch-icon-152.png?v=3">
-<link rel="apple-touch-icon" sizes="1024x1024" href="assets/pixel/icon-1024.png?v=3">
 <meta name="apple-mobile-web-app-title" content="NIKO">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
