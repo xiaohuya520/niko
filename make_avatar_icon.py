@@ -140,8 +140,9 @@ def main():
     master = master.filter(ImageFilter.UnsharpMask(radius=1.2, percent=85, threshold=2))
 
     out_sizes = {
-        "icon-1024.png": 1024,          # iOS 主屏首选高清源
-        "icon-512.png": 512,            # PWA / Android
+        # 不再产出 1024 PNG：照片型 PNG 有 1MB 级体积，而 iOS 主屏最高只用到 180，
+        # Android 用 512 足够，多余档位只会白耗流量。
+        "icon-512.png": 512,            # PWA / Android 最高档
         "icon-192.png": 192,            # PWA / Android
         "apple-touch-icon.png": 180,    # iOS 主屏标准档
         "apple-touch-icon-152.png": 152,
