@@ -284,6 +284,82 @@ a{color:inherit;text-decoration:none}
   background:var(--panel2);border:1px dashed var(--line-soft);border-radius:18px;margin-top:8px}
 .back{margin-top:16px}
 
+/* ==== CS 经典武器背景（AWP / AK-47 / M4A4 / 沙鹰 / 弯刀 / 手雷 / 闪光弹）==== */
+.arms{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  transform:translate3d(0,var(--sy,0px),0);transition:transform .6s cubic-bezier(.22,.9,.3,1)}
+.arm{position:absolute;height:auto;color:var(--ink);fill:currentColor;opacity:.075;
+  transform:rotate(var(--r,0deg));
+  animation:armDrift var(--d,26s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+@keyframes armDrift{
+  0%,100%{transform:rotate(var(--r,0deg)) translate3d(0,0,0)}
+  50%{transform:rotate(var(--r,0deg)) translate3d(0,-18px,0)}
+}
+.arm-1{--r:-9deg;--d:30s;width:60vw;max-width:660px;right:-9vw;top:8vh;opacity:.085}
+.arm-2{--r:8deg;--d:26s;--dl:-6s;width:46vw;max-width:500px;left:-12vw;top:32vh}
+.arm-3{--r:-6deg;--d:34s;--dl:-14s;width:42vw;max-width:460px;right:-7vw;top:56vh;opacity:.065}
+.arm-4{--r:-16deg;--d:22s;--dl:-3s;width:19vw;max-width:200px;left:5vw;top:16vh;opacity:.06}
+.arm-5{--r:14deg;--d:24s;--dl:-9s;width:22vw;max-width:230px;right:8vw;bottom:7vh;opacity:.07}
+.arm-6{--r:-10deg;--d:20s;--dl:-5s;width:12vw;max-width:128px;left:24vw;bottom:14vh;opacity:.06}
+.arm-7{--r:18deg;--d:28s;--dl:-11s;width:11vw;max-width:118px;left:6vw;bottom:3vh;opacity:.055}
+/* hero 卡片里的大 AWP 水印 */
+.hero-arms{position:absolute;right:-8%;bottom:-8%;width:64%;z-index:0;pointer-events:none;
+  color:var(--ink);fill:currentColor;opacity:.085;
+  animation:heroArm 18s ease-in-out infinite}
+@keyframes heroArm{
+  0%,100%{transform:translate3d(0,0,0) rotate(0deg)}
+  50%{transform:translate3d(-12px,-9px,0) rotate(-1.6deg)}
+}
+
+/* ==== 点击反馈：涟漪 + 命中标记 + 按压缩放 ==== */
+.wrap{position:relative;z-index:1}
+a,button,.row,.pc,.tc,.lk,.more,.up-c,.st,.map,.prof,.syncbar{
+  position:relative;overflow:hidden;
+  transition:transform .18s cubic-bezier(.2,.9,.3,1.35),box-shadow .3s ease,
+             background-color .3s ease,border-color .3s ease,color .3s ease}
+a:active,button:active,.row:active,.pc:active,.tc:active,.lk:active,.more:active,
+.up-c:active,.st:active,.map:active,.prof:active,.pressed{transform:scale(.972)}
+.ripple{position:absolute;border-radius:50%;pointer-events:none;z-index:3;
+  background:radial-gradient(circle,rgba(91,92,230,.45) 0%,rgba(124,125,242,.2) 42%,rgba(124,125,242,0) 72%);
+  animation:ripple .62s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes ripple{from{transform:scale(0);opacity:.95}to{transform:scale(2.4);opacity:0}}
+.hitmark{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;z-index:4;
+  animation:hit .5s cubic-bezier(.2,.8,.3,1) forwards}
+.hitmark::before,.hitmark::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:19px;
+  margin:-9.5px 0 0 -1px;background:var(--amber);border-radius:2px}
+.hitmark::before{transform:rotate(45deg)}
+.hitmark::after{transform:rotate(-45deg)}
+@keyframes hit{0%{transform:scale(.35) rotate(-25deg);opacity:0}
+  25%{transform:scale(1) rotate(0deg);opacity:.95}
+  100%{transform:scale(1.35) rotate(8deg);opacity:0}}
+@media(hover:hover){
+  .row:hover,.pc:hover,.tc:hover,.up-c:hover,.st:hover,.map:hover,.prof:hover{
+    transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--line-soft)}
+  .lk:hover{background:var(--amber);color:#fff;border-color:transparent;transform:translateY(-2px);
+    box-shadow:0 12px 22px -12px rgba(91,92,230,.7)}
+  .more:hover{background:var(--amber-bg);border-color:var(--amber2)}
+  .crosshair:hover{transform:rotate(90deg) scale(1.08)}
+}
+.crosshair{transition:transform .45s cubic-bezier(.2,.9,.3,1.5),box-shadow .3s ease}
+
+/* ==== 过渡动画：入场 / 滚动渐显 / 切页淡出 ==== */
+@keyframes pageIn{from{opacity:0;transform:translateY(12px)}}
+@keyframes hudIn{from{opacity:0;transform:translateY(-100%)}}
+.wrap{animation:pageIn .5s cubic-bezier(.22,.9,.3,1) backwards}
+.hud{animation:hudIn .45s cubic-bezier(.22,.9,.3,1) backwards}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px) scale(.99)}to{opacity:1;transform:none}}
+.rv{opacity:0}
+.rv.in{animation:riseIn .58s cubic-bezier(.22,.9,.3,1) forwards;animation-delay:var(--rd,0s)}
+body.leaving .wrap{opacity:0;transform:translateY(-10px);
+  transition:opacity .2s ease,transform .2s ease}
+body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
+
+@media(prefers-reduced-motion:reduce){
+  .arm,.hero-arms,.wrap,.hud{animation:none!important}
+  .rv{opacity:1!important}
+  .ripple,.hitmark{display:none!important}
+  *{transition-duration:.01ms!important}
+}
+
 /* 移动端微调 */
 @media(max-width:380px){
   .hud-in{padding:10px 12px;gap:9px}
@@ -296,6 +372,87 @@ a{color:inherit;text-decoration:none}
   .sc{width:50px;font-size:15px}
 }
 """
+
+# ===== CS 经典武器剪影（内联 SVG sprite，纯几何图形绘制）=====
+ARMS_SPRITE = """<svg id="armsSprite" aria-hidden="true"
+  style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="w-awp" viewBox="0 0 240 90"><g fill="currentColor">
+    <path d="M2 30 L2 58 L34 54 L62 50 L96 48 L96 29 Z"/>
+    <path d="M46 29 L80 21 L96 21 L96 29 Z"/>
+    <rect x="96" y="26" width="62" height="22" rx="3"/>
+    <rect x="106" y="12" width="52" height="13" rx="4"/>
+    <rect x="98" y="13" width="11" height="12" rx="3"/>
+    <rect x="152" y="10" width="17" height="18" rx="5"/>
+    <rect x="112" y="24" width="6" height="5"/><rect x="146" y="24" width="6" height="5"/>
+    <rect x="156" y="34" width="74" height="8"/><rect x="224" y="31" width="14" height="14" rx="2"/>
+    <path d="M112 48 L134 48 L138 70 L116 70 Z"/><path d="M98 48 L114 48 L110 70 L96 68 Z"/>
+    <path d="M120 52 L127 52 L125 60 L118 60 Z"/>
+    <path d="M186 42 L193 42 L205 68 L199 68 Z"/><path d="M176 42 L182 42 L172 68 L166 68 Z"/>
+    <rect x="140" y="49" width="15" height="7" rx="3"/>
+  </g></symbol>
+  <symbol id="w-ak" viewBox="0 0 240 90"><g fill="currentColor">
+    <path d="M2 34 L92 28 L92 48 L46 50 L2 50 Z"/>
+    <rect x="88" y="25" width="36" height="24" rx="2"/>
+    <rect x="112" y="19" width="13" height="8" rx="1"/>
+    <rect x="122" y="30" width="48" height="14" rx="3"/>
+    <rect x="122" y="22" width="42" height="7" rx="2"/>
+    <rect x="166" y="32" width="58" height="7"/><rect x="216" y="30" width="11" height="11" rx="2"/>
+    <rect x="200" y="20" width="7" height="13"/>
+    <path d="M100 49 L124 49 C136 60 142 72 142 84 L120 82 C118 70 110 58 100 49 Z"/>
+    <path d="M86 49 L102 49 L98 72 L84 70 Z"/>
+    <path d="M104 53 L111 53 L109 61 L103 61 Z"/>
+    <rect x="118" y="29" width="16" height="6" rx="2"/>
+  </g></symbol>
+  <symbol id="w-m4" viewBox="0 0 240 90"><g fill="currentColor">
+    <path d="M2 24 L12 27 L34 30 L34 50 L12 50 L2 47 Z"/>
+    <rect x="34" y="32" width="52" height="10"/>
+    <rect x="86" y="25" width="38" height="22" rx="2"/>
+    <rect x="96" y="17" width="24" height="8" rx="2"/>
+    <rect x="122" y="29" width="52" height="13" rx="3"/>
+    <rect x="170" y="32" width="54" height="7"/><rect x="218" y="30" width="11" height="11" rx="2"/>
+    <rect x="196" y="18" width="6" height="14"/>
+    <path d="M100 47 L122 47 L130 82 L108 80 Z"/>
+    <path d="M86 47 L101 47 L96 70 L82 68 Z"/>
+    <path d="M104 51 L111 51 L109 59 L103 59 Z"/>
+  </g></symbol>
+  <symbol id="w-deagle" viewBox="0 0 170 100"><g fill="currentColor">
+    <rect x="20" y="32" width="100" height="14" rx="3"/>
+    <rect x="112" y="34" width="18" height="12" rx="2"/>
+    <rect x="104" y="26" width="6" height="7"/><rect x="30" y="26" width="8" height="7"/>
+    <rect x="42" y="46" width="70" height="8" rx="2"/>
+    <path d="M66 52 L88 52 L72 96 L52 96 Z"/>
+    <path d="M88 52 C104 52 109 60 101 68 L93 66 C97 60 95 56 88 56 Z"/>
+    <path d="M94 56 L101 56 L99 65 L93 65 Z"/>
+    <path d="M20 30 L32 26 L36 36 L22 38 Z"/>
+  </g></symbol>
+  <symbol id="w-knife" viewBox="0 0 150 100"><g fill="currentColor">
+    <path d="M50 38 C88 46 112 42 128 20 C116 52 88 68 50 64 Z"/>
+    <path d="M46 32 L56 64 L32 72 C20 74 14 64 20 54 Z"/>
+    <circle cx="18" cy="58" r="9.5" fill="none" stroke="currentColor" stroke-width="4.5"/>
+  </g></symbol>
+  <symbol id="w-he" viewBox="0 0 110 130"><g fill="currentColor">
+    <rect x="24" y="44" width="64" height="78" rx="30"/>
+    <rect x="40" y="32" width="30" height="14" rx="4"/>
+    <path d="M62 28 L94 12 L98 24 L66 40 Z"/>
+    <circle cx="54" cy="15" r="9" fill="none" stroke="currentColor" stroke-width="4.5"/>
+  </g></symbol>
+  <symbol id="w-flash" viewBox="0 0 110 130"><g fill="currentColor">
+    <rect x="30" y="42" width="52" height="80" rx="11"/>
+    <rect x="42" y="30" width="28" height="13" rx="3"/>
+    <path d="M62 26 L92 11 L96 22 L66 37 Z"/>
+    <circle cx="55" cy="14" r="8.5" fill="none" stroke="currentColor" stroke-width="4.5"/>
+  </g></symbol>
+</svg>"""
+
+ARMS_BG = """<div class="arms" aria-hidden="true">
+  <svg class="arm arm-1" viewBox="0 0 240 90"><use href="#w-awp"/></svg>
+  <svg class="arm arm-2" viewBox="0 0 240 90"><use href="#w-ak"/></svg>
+  <svg class="arm arm-3" viewBox="0 0 240 90"><use href="#w-m4"/></svg>
+  <svg class="arm arm-4" viewBox="0 0 170 100"><use href="#w-deagle"/></svg>
+  <svg class="arm arm-5" viewBox="0 0 150 100"><use href="#w-knife"/></svg>
+  <svg class="arm arm-6" viewBox="0 0 110 130"><use href="#w-he"/></svg>
+  <svg class="arm arm-7" viewBox="0 0 110 130"><use href="#w-flash"/></svg>
+</div>"""
 
 CORE_JS = r"""
 const REPO = '__REPO__';
@@ -592,9 +749,121 @@ function render(){
   };
 }
 
+/* ===== 视觉增强：武器背景 / 点击反馈 / 过渡动画 ===== */
+const TAP_SEL = 'a,button,.row,.pc,.tc,.lk,.more,.up-c,.st,.map,.prof,.hero';
+const SVGNS = 'http://www.w3.org/2000/svg';
+const NO_ANIM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* hero 卡片里放一把 AWP 水印 */
+function fxArms(){
+  document.querySelectorAll('.hero').forEach(h => {
+    if(h.querySelector('.hero-arms')) return;
+    const s = document.createElementNS(SVGNS, 'svg');
+    s.setAttribute('class', 'hero-arms');
+    s.setAttribute('viewBox', '0 0 240 90');
+    s.setAttribute('aria-hidden', 'true');
+    const u = document.createElementNS(SVGNS, 'use');
+    u.setAttribute('href', '#w-awp');
+    s.appendChild(u); h.appendChild(s);
+  });
+}
+/* 滚动渐显（逐块错峰） */
+function fxReveal(){
+  const els = document.querySelectorAll('#app > *');
+  if(!els.length) return;
+  if(NO_ANIM || !('IntersectionObserver' in window)){
+    els.forEach(e => { e.classList.add('rv','in'); }); return;
+  }
+  const io = new IntersectionObserver(ents => {
+    ents.forEach(en => {
+      if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  }, {rootMargin:'0px 0px -6% 0px', threshold:.03});
+  let i = 0;
+  els.forEach(e => {
+    e.classList.add('rv');
+    e.style.setProperty('--rd', (Math.min(i, 5) * 0.07) + 's'); i++;
+    io.observe(e);
+  });
+}
+/* 点击 = 涟漪 + CS 命中标记 + 按压回弹（含 iOS 兜底） */
+function fxRipple(){
+  const release = () => document.querySelectorAll('.pressed')
+    .forEach(e => e.classList.remove('pressed'));
+  document.addEventListener('pointerup', release, {passive:true});
+  document.addEventListener('pointercancel', release, {passive:true});
+  window.addEventListener('blur', release);
+  document.addEventListener('pointerdown', e => {
+    const t = e.target.closest ? e.target.closest(TAP_SEL) : null;
+    if(!t) return;
+    t.classList.add('pressed');
+    setTimeout(() => t.classList.remove('pressed'), 320);
+    if(NO_ANIM) return;
+    const r = t.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const size = Math.max(r.width, r.height) * 1.1;
+    const sp = document.createElement('span');
+    sp.className = 'ripple';
+    sp.style.cssText = 'width:' + size + 'px;height:' + size + 'px;left:'
+      + (x - size / 2) + 'px;top:' + (y - size / 2) + 'px';
+    const hm = document.createElement('i');
+    hm.className = 'hitmark';
+    hm.style.cssText = 'left:' + x + 'px;top:' + y + 'px';
+    t.appendChild(sp); t.appendChild(hm);
+    setTimeout(() => { sp.remove(); hm.remove(); }, 640);
+  }, {passive:true});
+}
+/* 武器层轻微视差 */
+function fxParallax(){
+  const arms = document.querySelector('.arms');
+  if(!arms || NO_ANIM) return;
+  let raf = 0;
+  addEventListener('scroll', () => {
+    if(raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      arms.style.setProperty('--sy', (scrollY * -0.035).toFixed(1) + 'px');
+    });
+  }, {passive:true});
+}
+/* 站内跳转淡出过渡 */
+function fxLeave(){
+  document.addEventListener('click', e => {
+    if(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest ? e.target.closest('a[href]') : null;
+    if(!a || a.target === '_blank' || a.hasAttribute('download')) return;
+    const href = a.getAttribute('href') || '';
+    if(/^(https?:)?\/\//i.test(href) && new URL(href, location.href).origin !== location.origin) return;
+    const u = new URL(href, location.href);
+    if(u.pathname.split('/').pop() === location.pathname.split('/').pop() && u.hash) return;
+    if(!/\.html?($|\?)/i.test(u.pathname)) return;
+    e.preventDefault();
+    document.body.classList.add('leaving');
+    setTimeout(() => { location.href = u.href; }, 200);
+  }, true);
+}
+let __fxBound = false;
+function fx(){
+  fxArms(); fxReveal();
+  if(__fxBound) return;
+  __fxBound = true;
+  fxRipple(); fxParallax(); fxLeave();
+  const app = document.getElementById('app');
+  if(app && 'MutationObserver' in window){
+    let t = 0;
+    new MutationObserver(() => {
+      clearTimeout(t); t = setTimeout(() => { fxArms(); fxReveal(); }, 30);
+    }).observe(app, {childList:true});
+  }
+  /* 兜底：2.5 秒后还没显形的一律显示，避免任何情况下白屏 */
+  setTimeout(() => document.querySelectorAll('.rv:not(.in)')
+    .forEach(e => e.classList.add('in')), 2500);
+}
+
 async function boot(){
   await pullNewest();
   render();
+  fx();
   sync(document.getElementById('liveStatus'));
 }
 """
@@ -894,6 +1163,8 @@ def build_page(fname, pid, title, js, desc):
 <style>{CSS}</style>
 </head>
 <body data-page="{pid}">
+{ARMS_SPRITE}
+{ARMS_BG}
 <div class="hud"><div class="hud-in">
   <div class="crosshair"><span></span></div>
   <div class="brand"><b>NIKO</b><small>赛事跟踪</small></div>
@@ -943,6 +1214,8 @@ def main():
 <style>{CSS}</style>
 </head>
 <body data-page="{pid}">
+{ARMS_SPRITE}
+{ARMS_BG}
 <div class="hud"><div class="hud-in">
   <div class="crosshair"><span></span></div>
   <div class="brand"><b>NIKO</b><small>赛事跟踪</small></div>
