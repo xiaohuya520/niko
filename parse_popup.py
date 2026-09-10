@@ -1,36 +1,54 @@
-"""Extract every series on a Liquipedia bracket/tournament page via popup scoreholders."""
+"""Parse Falcons series results out of a rendered Liquipedia bracket page."""
 import re
+import sys
 
 
-def extract(html):
-    out = []
-    for m in re.finditer(r'match-info-header-scoreholder"', html):
-        p = m.end()
-        seg = html[p:p + 900]
-        sc = re.findall(r'scoreholder-score[^"]*">(\d+)</span>', seg)
-        if len(sc) < 2:
+def split_matches(html):
+    idx = [m.start() for m in re.finditer(r'<div class="brkts-match[ "]', html)]
+    return [html[s:(idx[i + 1] if i + 1 < len(idx) else len(html))] for i, s in enumerate(idx)]
+
+
+def parse(b):
+    entries = re.findall(
+        r'<div class="brkts-opponent-entry[^"]*" aria-label="([^"]*)"(.*?)(?=<div class="brkts-opponent-entry|$)',
+        b, re.S)
+    if len(entries) < 2:
+        return None
+    teams, scores, wins = [], [], []
+    for name, rest in entries[:2]:
+        teams.append(name.replace("Team ", "").replace(" Esports", ""))
+        sc = re.search(r'brkts-opponent-score-inner[^>]*><b>(\d+)</b>', rest)
+        scores.append(int(sc.group(1)) if sc else None)
+        wins.append("brkts-opponent-win" in rest[:400])
+    if "Falcons" not in " ".join(teams):
+        return None
+    ts = re.search(r'data-timestamp="(\d+)"', b)
+    bo = re.search(r'match-info-header-scoreholder-lower">\((Bo\d)\)', b)
+    return {
+        "teams": teams,
+        "scores": scores,
+        "wins": wins,
+        "ts": int(ts.group(1)) if ts else None,
+        "bo": bo.group(1) if bo else "",
+    }
+
+
+def main():
+    html = open(sys.argv[1], encoding="utf-8").read()
+    seen = set()
+    for b in split_matches(html):
+        m = parse(b)
+        if not m or None in m["scores"]:
             continue
-        bo = re.search(r'scoreholder-lower">\((Bo\d)\)', seg)
-        left_ctx = html[max(0, m.start() - 4000):m.start()]
-        right_ctx = html[p:p + 4000]
+        key = tuple(m["teams"])
+        if key in seen:
+            continue
+        seen.add(key)
+        fi = 0 if "Falcons" in m["teams"][0] else 1
+        opp = m["teams"][1 - fi]
+        fs, os_ = m["scores"][fi], m["scores"][1 - fi]
+        print(f"Falcons {fs}:{os_} {opp}  win={m['wins'][fi]}  bo={m['bo']}  ts={m['ts']}")
 
-        def team(ctx, reverse=False):
-            names = re.findall(r'data-team-name="([^"]+)"', ctx)
-            if not names:
-                names = re.findall(r'aria-label="([^"]+)"', ctx)
-            if not names:
-                return ""
-            return names[-1] if reverse else names[0]
 
-        left = team(left_ctx, reverse=True)
-        right = team(right_ctx)
-        ts = re.findall(r'data-timestamp="(\d+)"', left_ctx)
-        out.append({
-            "left": left.replace("Team ", ""),
-            "right": right.replace("Team ", ""),
-            "score": [int(sc[0]), int(sc[1])],
-            "bo": bo.group(1) if bo else "",
-            "ts": int(ts[-1]) if ts else None,
-            "left_win": 'match-info-header-winner' in left_ctx[-1500:],
-        })
-    return out
+if __name__ == "__main__":
+    main()
