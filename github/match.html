@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EEF0FB">
+<meta name="description" content="NiKo 比赛逐图详情">
+<title>比赛详情 // NiKo</title>
+<link rel="icon" type="image/svg+xml" href="assets/pixel/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/pixel/favicon.png">
+<link rel="apple-touch-icon" href="assets/pixel/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<style>
+/* ========== 清爽紫罗兰仪表盘风（参考 Ecourse UI） ========== */
+:root{
+  --bg:#EEF0FB;            /* 浅紫灰背景 */
+  --bg2:#E3E6F8;           /* 背景加深 */
+  --panel:#FFFFFF;         /* 白卡片 */
+  --panel2:#F4F5FE;        /* 淡紫面板 */
+  --panel3:#E9EBFA;        /* 更深一档 */
+  --line:#E5E8F6;          /* 卡片描边 */
+  --line-soft:#D6DAF0;
+  --hi:#FFFFFF;
+  --shadow-c:transparent;
+  --ink:#2E3256;           /* 主文字 · 深藏青 */
+  --ink2:#7B81A8;          /* 次文字 */
+  --dim:#A6ABC9;
+  --amber:#5B5CE6;         /* 主题靛蓝（沿用变量名，JS 无需改动） */
+  --amber2:#7C7DF2;
+  --amber-bg:#E9EAFE;
+  --win:#18B76B;           /* 胜 · 绿 */
+  --win-bg:#DFF6EA;
+  --loss:#EE5A6C;          /* 负 · 珊瑚红 */
+  --loss-bg:#FDE7EA;
+  --ct:#4C7FD9;
+  --t:#F08C4A;
+  --exp:#9C6BEB;
+  --shadow-lg:0 18px 40px -18px rgba(76,79,168,.28);
+  --shadow-md:0 10px 24px -12px rgba(76,79,168,.22);
+  --shadow-sm:0 4px 12px -4px rgba(76,79,168,.14);
+  --mono:"JetBrains Mono","SF Mono",Consolas,"Courier New",monospace;
+  --sans:"Segoe UI","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+img{display:block}
+body{
+  background-color:var(--bg);
+  background-image:radial-gradient(1200px 500px at 85% -10%, #E4E2FB 0%, transparent 60%),
+                   radial-gradient(900px 420px at -10% 0%, #EDE3F9 0%, transparent 55%);
+  background-repeat:no-repeat;
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 80px}
+
+/* === 顶栏 === */
+.hud{position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 1px 0 var(--line)}
+.hud-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:11px}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font-size:19px;letter-spacing:.14em;font-weight:800;color:var(--ink)}
+.brand small{font-size:10px;color:#fff;letter-spacing:.22em;font-family:var(--mono);
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  padding:2px 8px;margin-top:3px;border-radius:999px;
+  display:inline-block;width:fit-content}
+.hud .ava{width:36px;height:36px;flex:none;border-radius:12px}
+.status{margin-left:auto;display:flex;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);
+  padding:6px 12px;border-radius:999px;box-shadow:var(--shadow-sm)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}
+.dot.live{background:var(--loss);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* === 准星装饰（品牌图标）=== */
+.crosshair{width:34px;height:34px;flex:none;position:relative;
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  border-radius:11px;box-shadow:0 6px 14px -6px rgba(91,92,230,.55)}
+.crosshair::before,.crosshair::after{content:"";position:absolute;background:#fff;border-radius:2px}
+.crosshair::before{left:50%;top:8px;width:3px;height:18px;transform:translateX(-50%)}
+.crosshair::after{top:50%;left:8px;height:3px;width:18px;transform:translateY(-50%)}
+.crosshair span{display:none}
+
+/* === 头像 === */
+.av{background:var(--panel2);border:1px solid var(--line);object-fit:cover;flex:none;display:block;border-radius:16px}
+.av-xl{width:78px;height:78px}
+.av-lg{width:62px;height:62px}
+.av-ph{display:grid;place-items:center;font-family:var(--mono);font-weight:700;color:var(--amber);
+  background:linear-gradient(135deg,#ECEDFE,#E4E4FD);border:1px solid var(--line);flex:none;border-radius:16px}
+.av-ph-xl{width:78px;height:78px;font-size:22px}
+.av-ph-lg{width:62px;height:62px;font-size:19px}
+
+.prof{display:flex;align-items:center;gap:14px;background:var(--panel);
+  border:1px solid var(--line);border-radius:20px;padding:16px 18px;margin-top:18px;
+  box-shadow:var(--shadow-md)}
+.prof .nick{font-size:22px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.prof .full{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:2px}
+.prof .meta{font-family:var(--mono);font-size:11px;color:var(--amber);margin-top:6px;letter-spacing:.04em;
+  background:var(--amber-bg);padding:3px 9px;display:inline-block;border-radius:999px}
+.prof-link{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--amber);
+  background:var(--amber-bg);padding:6px 11px;border-radius:999px;letter-spacing:.08em;white-space:nowrap}
+
+/* === 横向滚动：队友 === */
+.scroller{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.scroller::-webkit-scrollbar{display:none}
+.pc{flex:0 0 132px;scroll-snap-align:start;background:var(--panel);
+  border:1px solid var(--line);border-radius:18px;padding:14px 10px;text-align:center;
+  box-shadow:var(--shadow-sm)}
+.pc:active{transform:scale(.97)}
+.pc .ph{width:62px;height:62px;margin:0 auto 10px}
+.pc .ph .av,.pc .ph .av-ph{border-radius:16px}
+.pc .pid{font-size:15px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.pc .prole{font-family:var(--mono);font-size:10px;color:var(--amber);background:var(--amber-bg);
+  padding:2px 8px;display:inline-block;margin-top:5px;letter-spacing:.06em;border-radius:999px}
+.pc .pnat{font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:4px}
+.hint{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em;margin-bottom:6px}
+
+/* === 章节 === */
+.sec{margin-top:32px;position:relative}
+.sec-h{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.sec-h b{font-size:14px;letter-spacing:.12em;color:#fff;font-family:var(--sans);font-weight:700;
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  padding:6px 14px;border-radius:999px;box-shadow:0 6px 14px -6px rgba(91,92,230,.5)}
+.sec-h i{flex:1;height:1px;background:var(--line-soft)}
+.sec-h em{font-family:var(--mono);font-size:11px;color:var(--ink2);font-style:normal;letter-spacing:.06em}
+.sec-h a em{color:var(--amber);font-weight:700}
+
+/* === 下一场比赛 hero === */
+.hero{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:24px;position:relative;
+  box-shadow:var(--shadow-lg);
+  overflow:hidden}
+.hero::after{content:"";position:absolute;right:-40px;bottom:-30px;width:230px;height:170px;
+  background:radial-gradient(closest-side,rgba(124,125,242,.14),transparent);
+  pointer-events:none}
+.hero-top{display:flex;align-items:center;gap:8px;padding:14px 18px 0}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#fff;
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  padding:4px 11px;border-radius:999px;font-weight:700}
+.hero-body{padding:18px 16px 22px;text-align:center;position:relative;z-index:1}
+.vs{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 4px;flex-wrap:wrap}
+.team{font-size:27px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.team.tbd{color:var(--dim)}
+.vs-mid{font-family:var(--mono);font-size:13px;color:#fff;
+  background:linear-gradient(135deg,var(--amber),var(--amber2));
+  padding:4px 11px;letter-spacing:.08em;font-weight:700;border-radius:999px}
+.hero-sub{font-family:var(--mono);font-size:12px;color:var(--ink2);letter-spacing:.04em}
+.hero-note{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.04em;margin-top:10px;
+  background:var(--amber-bg);padding:4px 11px;display:inline-block;border-radius:999px}
+
+/* === 倒计时（干净数字，绝无重影）=== */
+.cd{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0 6px}
+.cd div{background:linear-gradient(180deg,#F6F7FF,#EFF0FD);
+  border:1px solid var(--line);border-radius:18px;padding:14px 4px 12px;
+  box-shadow:inset 0 1px 0 #fff}
+.cd b{display:block;font-family:var(--sans);font-size:32px;font-weight:800;color:var(--amber);
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum";
+  line-height:1;text-shadow:none;letter-spacing:0}
+.cd span{font-size:10px;color:var(--ink2);letter-spacing:.3em;font-family:var(--mono);margin-top:7px;display:block}
+
+/* === 未来赛程卡 === */
+.up{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.up-c{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:15px 17px;position:relative;
+  box-shadow:var(--shadow-sm)}
+.up-c .n{font-size:16px;font-weight:700;letter-spacing:.01em;color:var(--ink);padding-right:64px}
+.up-c .d{font-family:var(--mono);font-size:12px;color:var(--amber);margin-top:4px;font-weight:700}
+.up-c .m{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:8px;letter-spacing:.03em}
+.tier{position:absolute;top:13px;right:14px;font-family:var(--mono);font-size:10px;
+  color:var(--amber);background:var(--amber-bg);padding:4px 9px;letter-spacing:.06em;font-weight:700;border-radius:999px}
+
+/* === 战绩 rows === */
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:12px;background:var(--panel);
+  border:1px solid var(--line);border-left:4px solid var(--line-soft);border-radius:16px;padding:12px 14px;
+  box-shadow:var(--shadow-sm)}
+.row:active{transform:scale(.985)}
+.row.W{border-left-color:var(--win)}
+.row.L{border-left-color:var(--loss)}
+.res{width:30px;height:30px;flex:none;display:grid;place-items:center;font-family:var(--mono);
+  font-size:13px;font-weight:700;color:#fff;border-radius:10px}
+.res.W{background:var(--win)} .res.L{background:var(--loss)}
+.sc{font-family:var(--mono);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;flex:none;width:58px;color:var(--ink)}
+.info{flex:1;min-width:0}
+.info .o{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.info .e{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:2px;letter-spacing:.02em}
+.rt{flex:none;text-align:right;font-family:var(--mono)}
+.rt b{font-size:14px;color:var(--ink);font-weight:700}
+.rt small{display:block;font-size:10px;color:var(--ink2);letter-spacing:.04em}
+.bar{width:56px;height:6px;background:var(--panel3);margin-top:5px;margin-left:auto;border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--amber2));border-radius:999px}
+.chev{flex:none;color:var(--dim);font-size:18px}
+.more{display:block;width:100%;margin-top:10px;background:var(--panel);
+  border:1px solid var(--line);color:var(--amber);font-family:var(--mono);font-size:12px;letter-spacing:.1em;
+  padding:12px;border-radius:14px;cursor:pointer;font-weight:700;box-shadow:var(--shadow-sm)}
+.more:active{transform:scale(.985)}
+
+/* === 数据统计格子 === */
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(112px,1fr))}
+.st{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 15px;
+  box-shadow:var(--shadow-sm)}
+.st span{display:block;font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:.1em}
+.st b{display:block;font-family:var(--sans);font-size:23px;font-weight:800;margin-top:6px;
+  color:var(--ink);font-variant-numeric:tabular-nums}
+.st.hl b{color:var(--win)}
+.st-sub{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px}
+
+/* === 资料表 === */
+.kv{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  box-shadow:var(--shadow-sm);overflow:hidden}
+.kv-row{display:flex;gap:12px;padding:11px 16px;border-bottom:1px dashed var(--line-soft);font-size:14px}
+.kv-row:last-child{border-bottom:none}
+.kv-row span{flex:none;width:96px;font-family:var(--mono);font-size:11px;color:var(--ink2);
+  letter-spacing:.06em;padding-top:3px;font-weight:700}
+.kv-row b{font-weight:500;color:var(--ink)}
+
+/* === 比赛地图 === */
+.map{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line-soft);
+  border-radius:16px;padding:13px 15px;margin-bottom:10px;
+  box-shadow:var(--shadow-sm)}
+.map.W{border-left-color:var(--win)} .map.L{border-left-color:var(--loss)}
+.map.veto{border-left-color:var(--line-soft);opacity:.55}
+.map-h{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;flex-wrap:wrap}
+.map-h b{font-size:16px;letter-spacing:.02em;color:var(--ink)}
+.map-h em{font-family:var(--mono);font-size:10px;font-style:normal;color:var(--ink2);letter-spacing:.06em;
+  background:var(--panel2);padding:3px 8px;border-radius:999px}
+.map-en{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:7px;letter-spacing:.04em}
+.map-res{margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:700;
+  padding:3px 10px;border-radius:999px}
+.map-res.W{color:#fff;background:var(--win)} .map-res.L{color:#fff;background:var(--loss)}
+.mline{display:flex;align-items:center;gap:9px;margin-top:5px}
+.mline .who{font-family:var(--mono);font-size:11px;color:var(--ink2);flex:none;width:60px;letter-spacing:.03em;font-weight:700}
+.mline .rounds{font-family:var(--mono);font-size:18px;font-weight:700;flex:none;width:40px;
+  text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.mline .halves{font-family:var(--mono);font-size:10px;color:var(--ink2);flex:none;width:74px}
+.mline .tbar{flex:1;height:6px;background:var(--panel3);border-radius:999px;overflow:hidden}
+.mline .tbar i{display:block;height:100%;background:linear-gradient(90deg,var(--win),#3ED48C);border-radius:999px}
+.mline.L .tbar i{background:linear-gradient(90deg,var(--loss),#FF8A96)}
+
+/* === 链接按钮 === */
+.links{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+.lk{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--amber);
+  background:var(--panel);border:1px solid var(--line);padding:8px 14px;font-weight:700;
+  border-radius:999px;box-shadow:var(--shadow-sm)}
+.lk:active{transform:scale(.97)}
+
+/* === 队伍格 === */
+.team-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tc{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px 14px;text-align:center;
+  box-shadow:var(--shadow-sm)}
+.tc:active{transform:scale(.98)}
+.tc .ph{width:76px;height:76px;margin:0 auto 10px}
+.tc .ph .av,.tc .ph .av-ph{border-radius:20px}
+.tc .pid{font-size:17px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.tc .pfull{font-family:var(--mono);font-size:10px;color:var(--ink2);margin-top:2px}
+.tc .prole{font-family:var(--mono);font-size:11px;color:var(--amber);background:var(--amber-bg);
+  padding:3px 10px;display:inline-block;margin-top:7px;letter-spacing:.06em;font-weight:700;border-radius:999px}
+.tc .pdesc{font-size:11px;color:var(--ink2);margin-top:6px;line-height:1.4}
+
+/* === 准星练习 === */
+.xh{display:grid;place-items:center;background:linear-gradient(180deg,#F6F7FF,#EFF0FD);
+  border:1px solid var(--line);border-radius:18px;
+  height:130px;margin-top:10px;position:relative;overflow:hidden}
+.xh i{position:absolute;background:var(--amber);border-radius:1px}
+
+/* === 页脚 === */
+.foot{margin-top:32px;padding-top:18px;border-top:1px solid var(--line-soft);
+  font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.8}
+.foot a{color:var(--amber);font-weight:700}
+.syncbar{display:flex;align-items:center;gap:8px;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--ink2);
+  background:var(--panel);padding:9px 14px;border:1px solid var(--line);border-radius:999px;
+  box-shadow:var(--shadow-sm)}
+.syncbar .lk{background:var(--amber-bg);border-color:transparent}
+.empty{padding:28px 14px;text-align:center;color:var(--ink2);font-family:var(--mono);font-size:12px;
+  background:var(--panel2);border:1px dashed var(--line-soft);border-radius:18px;margin-top:8px}
+.back{margin-top:16px}
+
+/* 移动端微调 */
+@media(max-width:380px){
+  .hud-in{padding:10px 12px;gap:9px}
+  .brand b{font-size:17px}
+  .prof .nick{font-size:19px}
+  .team{font-size:22px}
+  .cd b{font-size:26px}
+  .row{padding:11px 12px;gap:10px}
+  .res{width:26px;height:26px;font-size:12px}
+  .sc{width:50px;font-size:15px}
+}
+</style>
+</head>
+<body data-page="match">
+<div class="hud"><div class="hud-in">
+  <div class="crosshair"><span></span></div>
+  <div class="brand"><b>NIKO</b><small>赛事跟踪</small></div>
+  <div class="status"><i class="dot" id="dot"></i><span id="statusTxt">待战</span></div>
+</div></div>
+<div class="wrap" id="app"></div>
+<script id="niko-data" type="application/json">{"player": {"nick": "NiKo", "full_name": "Nikola Kovač", "country": "波黑", "age": 29, "team": "Team Falcons", "joined": "2025-01-03", "role": "步枪手", "teammates": ["karrigan", "m0NESY", "TeSeS", "kyousuke"], "coach": "zonic", "team_rank": 2, "team_points": 1854, "rating_3m": 1.13, "maps_3m": 43, "career": {"kills": 46073, "kd": 1.18, "adr": 84.6, "kpr": 0.78, "hs": 51.4, "maps": 2311, "mvp": 10, "top20": 10}, "major": {"title": "IEM Cologne Major 2026", "date": "2026-06-21", "result": "3-0 胜 FURIA", "note": "职业生涯首个 Major 冠军，距首次 Major 决赛 3067 天"}, "born": "1997 年 2 月 16 日", "years_active": "2009 年至今", "status": "现役", "winnings": "$2,011,746", "role_liq": "突破位", "gear": {"mouse": "Razer DeathAdder V3 Pro", "mousepad": "Razer Gigantus V2 (Large)", "edpi": "720", "dpi": "1600", "sens": "0.45", "polling": "1000 Hz", "zoom_sens": "1", "raw_input": "开", "monitor": "ZOWIE XL2566K", "refresh": "360 Hz", "resolution": "1024×768 拉伸", "keyboard": "Razer Huntsman V3 Pro TKL", "headset": "Razer BlackShark V2 Pro"}, "crosshair": {"style": "4", "size": "1", "thickness": "1", "sniper_width": "1", "gap": "-4", "outline": "否", "dot": "否", "color": "5", "alpha": "255"}, "crosshair_sharecode": "CSGO-OFKZZ-mZp9n-KXx4x-2SmEp-jcYHK", "photo": "assets/players/NiKo.jpg"}, "next_match": null, "upcoming_tournaments": [{"short": "EPL S24", "date_text": "10/03–11", "start": "2026-10-03T18:00:00Z", "name": "ESL Pro League Season 24", "tier": "S-Tier", "note": ""}, {"short": "IEM 北京", "date_text": "11/02–08", "start": "2026-11-02T10:00:00Z", "name": "IEM 北京 2026", "tier": "S-Tier", "note": "奖金 125 万美元"}], "meta": {"sources": [{"name": "Liquipedia Counter-Strike Wiki", "license": "CC-BY-SA 3.0", "url": "https://liquipedia.net/counterstrike"}, {"name": "HLTV.org", "url": "https://www.hltv.org"}], "note": "个人 rating 数据来自 HLTV（仅逐场核对过的 5 场，其余留空不编造）；赛程与系列赛比分来自 Liquipedia。时区统一按 UTC 存储，前端转换为北京时间。", "updated": "2026-09-10T04:25:27+00:00"}, "squad": [{"id": "NiKo", "name": "Nikola Kovač", "native_name": "Никола Ковач", "nationality": "波黑", "born": "1997 年 2 月 16 日", "age": 29, "role": "步枪手", "role_raw": "Entry", "role_zh": "步枪手", "note": "核心 — 世界上最好的步枪手之一", "status": "现役", "years_active": "2009 年至今", "team": "Team Falcons", "winnings": "$2,011,746", "nicknames": "", "alt_ids": "NiKolinho, nIKOLINHO, NiKOLINHO, nik0k0, niko", "history": [{"from": "2013-12-16", "to": "2014-03-21", "team": "GamePub"}, {"from": "2014-08-21", "to": "2015-01-11", "team": "aimface"}, {"from": "2015-08-30", "to": "2017-02-19", "team": "mousesports"}, {"from": "2017-02-19", "to": "2020-10-28", "team": "FaZe Clan"}, {"from": "2020-10-28", "to": "2025-01-03", "team": "G2 Esports"}], "url": "https://liquipedia.net/counterstrike/NiKo", "photo": "assets/players/NiKo.jpg"}, {"id": "TeSeS", "name": "René Stensig Madsen", "native_name": "René Stensig Madsen", "nationality": "丹麦", "born": "2000 年 12 月 12 日", "age": 25, "role": "步枪手", "role_raw": "Entry", "role_zh": "步枪手", "note": "自由人 — 丹麦老将，稳定输出点", "status": "现役", "years_active": "2016 年至今", "team": "Team Falcons", "winnings": "$1,029,013", "nicknames": "", "alt_ids": "", "history": [{"from": "2018-03-25", "to": "2018-10-01", "team": "Squared Esports"}, {"from": "2018-10-01", "to": "2019-06-10", "team": "GoldenGitte"}, {"from": "2019-10-14", "to": "2019-11-12", "team": "CPH Flames"}, {"from": "2019-11-12", "to": "2020-04-08", "team": "Copenhagen Flames"}, {"from": "2020-04-08", "to": "2025-01-04", "team": "HEROIC"}], "url": "https://liquipedia.net/counterstrike/TeSeS", "photo": "assets/players/TeSeS.jpg"}, {"id": "m0NESY", "name": "Ilya Osipov", "native_name": "Илья Осипов", "nationality": "俄罗斯", "born": "2005 年 5 月 1 日", "age": 21, "role": "狙击手", "role_raw": "AWPer", "role_zh": "狙击手", "note": "AWP 手 — 世界顶级狙击手", "status": "现役", "years_active": "2019 年至今", "team": "Team Falcons", "winnings": "$1,125,844", "nicknames": "Yellow Flash, The Flash, Baby GOAT", "alt_ids": "m0", "history": [{"from": "2019-07-04", "to": "2019-10-10", "team": "NewBALLS"}, {"from": "2021-12-08", "to": "2022-01-03", "team": "NAVI Junior"}, {"from": "2020-01-21", "to": "2021-03-11", "team": "NAVI Jr."}, {"from": "2021-03-11", "to": "2021-12-08", "team": "Natus Vincere Junior"}, {"from": "2022-01-03", "to": "2025-04-14", "team": "G2 Esports"}], "url": "https://liquipedia.net/counterstrike/m0NESY", "photo": "assets/players/m0NESY.jpg"}, {"id": "kyousuke", "name": "Maksim Lukin", "native_name": "Максим Лукин", "nationality": "俄罗斯", "born": "2008 年 1 月 30 日", "age": 18, "role": "步枪手", "role_raw": "Entry", "role_zh": "步枪手", "note": "突破手 — 新生代新星", "status": "现役", "years_active": "2024 年至今", "team": "Team Falcons", "winnings": "$313,613", "nicknames": "", "alt_ids": "CEMEN_BAKIN", "history": [{"from": "2024-03-26", "to": "2025-06-23", "team": "Team Spirit Academy"}], "url": "https://liquipedia.net/counterstrike/kyousuke", "photo": "assets/players/kyousuke.jpg"}, {"id": "karrigan", "name": "Finn Andersen", "native_name": "Finn Andersen", "nationality": "丹麦", "born": "1990 年 4 月 14 日", "age": 36, "role": "指挥", "role_raw": "", "role_zh": "指挥", "note": "指挥 — 传奇 IGL，队伍大脑", "status": "现役", "years_active": "2006 年至今", "team": "Team Falcons", "winnings": "$2,333,141", "nicknames": "", "alt_ids": "karrigaNaStYa, FiNNiGAN, FiNNiGANastya, KARRYGAN", "history": [{"from": "2014-06-06", "to": "2014-10-10", "team": "Copenhagen Wolves"}, {"from": "2014-12-09", "to": "2015-01-25", "team": "Team Dignitas"}, {"from": "2015-01-29", "to": "2015-12-03", "team": "Team SoloMid"}, {"from": "2016-10-11", "to": "2016-10-19", "team": "Astralis"}, {"from": "2018-12-16", "to": "2019-03-14", "team": "FaZe Clan"}], "url": "https://liquipedia.net/counterstrike/karrigan", "photo": "assets/players/karrigan.jpg"}, {"id": "zonic", "name": "Danny Selim Sørensen", "native_name": "Danny Selim Sørensen", "nationality": "丹麦", "born": "1986 年 7 月 30 日", "age": 40, "role": "教练", "role_raw": "Coach", "role_zh": "教练", "note": "主教练 — 四届 Major 冠军教头", "status": "现役", "years_active": "2003 年 – 2012 年", "team": "Team Falcons", "winnings": "$119,680", "nicknames": "", "alt_ids": "", "history": [{"from": "2015-12-10", "to": "2016-01-04", "team": "mTw"}, {"from": "2011-12-08", "to": "2012-03-17", "team": "mousesports"}, {"from": "2015-07-29", "to": "2015-12-10", "team": "Team Dignitas"}, {"from": "2021-11-04", "to": "2021-12-29", "team": "Astralis"}, {"from": "2022-01-05", "to": "2023-10-11", "team": "Team Vitality"}], "url": "https://liquipedia.net/counterstrike/zonic", "photo": "assets/players/zonic.jpg"}], "recent_matches": [{"id": "2026-09-05-spirit", "date": "2026-09-05T14:00:00Z", "opponent": "Spirit", "score": "0-2", "result": "L", "bo": "Bo3", "event": "BLAST 波尔图公开赛", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "8", "t": "1", "ct": "7"}, "opponent": {"rounds": "13", "t": "2", "ct": "11"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "5", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Dust II", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396949/match", "vods": [{"game": 1, "url": "https://youtu.be/mzRUzg6iWQ0&t=29"}, {"game": 2, "url": "https://youtu.be/mzRUzg6iWQ0&t=2866"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=237122"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=237128"}]}, "niko": {"ratings": [0.72, 0.89]}}, {"id": "2026-09-04-g2-esports", "date": "2026-09-04T14:00:00Z", "opponent": "G2 Esports", "score": "2-0", "result": "W", "bo": "Bo3", "event": "BLAST 波尔图公开赛", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "2", "ct": "11"}, "opponent": {"rounds": "6", "t": "1", "ct": "5"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "9", "t": "6", "ct": "3"}}, {"map": "Mirage", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396947/match", "vods": [{"game": 1, "url": "https://youtu.be/qWA8A0wJidw&t=22"}, {"game": 2, "url": "https://youtu.be/qWA8A0wJidw&t=3004"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=236998"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=237014"}]}, "niko": {"ratings": []}}, {"id": "2026-08-31-mouz", "date": "2026-08-31T15:35:00Z", "opponent": "MOUZ", "score": "1-2", "result": "L", "bo": "Bo3", "event": "BLAST 波尔图公开赛", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "6", "t": "2", "ct": "4"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "6", "t": "3", "ct": "3"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "3", "t": "3", "ct": "0"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396945/match", "vods": [{"game": 1, "url": "https://youtu.be/froepD95QQE&t=27"}, {"game": 2, "url": "https://youtu.be/froepD95QQE&t=2313"}, {"game": 3, "url": "https://youtu.be/froepD95QQE&t=4538"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=236616"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=236622"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=236632"}]}, "niko": {"ratings": [0.38]}}, {"id": "2026-08-29-legacy", "date": "2026-08-29T16:45:00Z", "opponent": "Legacy", "score": "2-1", "result": "W", "bo": "Bo3", "event": "BLAST 波尔图公开赛", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "6", "t": "4", "ct": "2"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "7", "ct": "3"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "6", "t": "6", "ct": "0"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396938/match", "vods": [{"game": 1, "url": "https://youtu.be/IxLWZT9FM3w&t=27"}, {"game": 2, "url": "https://youtu.be/IxLWZT9FM3w&t=2633"}, {"game": 3, "url": "https://youtu.be/IxLWZT9FM3w&t=5492"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=236340"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=236345"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=236355"}]}, "niko": {"ratings": []}}, {"id": "2026-08-27-lynn-vision-gaming", "date": "2026-08-27T17:10:00Z", "opponent": "Lynn Vision Gaming", "score": "2-1", "result": "W", "bo": "Bo3", "event": "BLAST 波尔图公开赛", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "4", "t": "3", "ct": "1"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "2", "ct": "8"}, "opponent": {"rounds": "13", "t": "3", "ct": "10"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "10", "ct": "3"}, "opponent": {"rounds": "9", "t": "9", "ct": "0"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396930/match", "vods": [{"game": 1, "url": "https://youtu.be/pitkLCzW1_k&t=24"}, {"game": 2, "url": "https://youtu.be/pitkLCzW1_k&t=2503"}, {"game": 3, "url": "https://youtu.be/pitkLCzW1_k&t=5256"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=236108"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=236114"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=236121"}]}, "niko": {"ratings": []}}, {"id": "2026-08-21-legacy", "date": "2026-08-21T13:50:00Z", "opponent": "Legacy", "score": "0-2", "result": "L", "bo": "Bo3", "event": "电竞世界杯 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "0", "ct": "7"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "5", "ct": "5"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Ancient", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396609/match", "vods": [{"game": 1, "url": "https://youtu.be/BT_vcsOQnAQ&t=25"}, {"game": 2, "url": "https://youtu.be/BT_vcsOQnAQ&t=2460"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=235598"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=235602"}]}, "niko": {"ratings": [0.76]}}, {"id": "2026-08-20-the-mongolz", "date": "2026-08-20T11:00:00Z", "opponent": "The MongolZ", "score": "2-0", "result": "W", "bo": "Bo3", "event": "电竞世界杯 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "3", "t": "3", "ct": "0"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "9", "t": "4", "ct": "5"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396604/match", "vods": [{"game": 1, "url": "https://youtu.be/Lu_ZA5fxc18&t=29"}, {"game": 2, "url": "https://youtu.be/Lu_ZA5fxc18&t=1861"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=235517"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=235524"}]}, "niko": {"ratings": []}}, {"id": "2026-08-13-astralis", "date": "2026-08-13T16:40:00Z", "opponent": "Astralis", "score": "2-0", "result": "W", "bo": "Bo3", "event": "电竞世界杯 2026", "stage": "", "maps": [{"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "7", "t": "6", "ct": "1"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "11", "t": "5", "ct": "6"}}, {"map": "Mirage", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396579/match", "vods": [{"game": 1, "url": "https://youtu.be/cfLbPSLnDPQ&t=28"}, {"game": 2, "url": "https://youtu.be/cfLbPSLnDPQ&t=2432"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=235023"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=235028"}]}, "niko": {"ratings": [1.52]}}, {"id": "2026-08-12-k27", "date": "2026-08-12T13:45:00Z", "opponent": "K27", "score": "13-6", "result": "W", "bo": "Bo1", "event": "电竞世界杯 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "6", "t": "3", "ct": "3"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396563/match", "vods": [], "hltv_maps": []}, "niko": {"ratings": []}}, {"id": "2026-07-22-100-thieves", "date": "2026-07-22T17:30:00Z", "opponent": "100 Thieves", "score": "1-2", "result": "L", "bo": "Bo3", "event": "BLAST Bounty 夏季赛资格赛", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "4", "t": "2", "ct": "2"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "4", "ct": "3"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Anubis", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "9", "ct": "2"}, "opponent": {"rounds": "13", "t": "10", "ct": "3"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2396005/match", "vods": [{"game": 1, "url": "https://youtu.be/JvPU-r9MYn4&t=14"}, {"game": 2, "url": "https://youtu.be/JvPU-r9MYn4&t=2212"}, {"game": 3, "url": "https://youtu.be/JvPU-r9MYn4&t=5115"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=233343"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=233351"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=233355"}]}, "niko": {"ratings": []}}, {"id": "2026-06-21-furia", "date": "2026-06-21T15:00:00Z", "opponent": "FURIA", "score": "3-0", "result": "W", "bo": "Bo5", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "8", "t": "4", "ct": "4"}}, {"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "8", "t": "7", "ct": "1"}}, {"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "8", "t": "4", "ct": "4"}}, {"map": "Dust II", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2395002/match", "vods": [{"game": 1, "url": "https://youtu.be/p6U28DEBn8A&t=603"}, {"game": 2, "url": "https://youtu.be/p6U28DEBn8A&t=3380"}, {"game": 3, "url": "https://youtu.be/p6U28DEBn8A&t=6506"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231870"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231871"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231873"}]}, "niko": {"ratings": []}}, {"id": "2026-06-20-spirit", "date": "2026-06-20T17:00:00Z", "opponent": "Spirit", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "6", "ct": "6"}, "opponent": {"rounds": "14", "t": "6", "ct": "6"}}, {"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "8", "t": "2", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "5", "ct": "7"}, "opponent": {"rounds": "12", "t": "5", "ct": "7"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2395001/match", "vods": [{"game": 1, "url": "https://youtu.be/fmHU01rVThM?si=sChsSoFtDmYmyHC0&t=37s"}, {"game": 2, "url": "https://youtu.be/fmHU01rVThM?si=u_YPEi9sw9Q3n0ua&t=4271s"}, {"game": 3, "url": "https://youtu.be/fmHU01rVThM?si=1k_7cWwQj62zYjCb&t=7184s"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231824"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231831"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231836"}]}, "niko": {"ratings": []}}, {"id": "2026-06-19-vitality", "date": "2026-06-19T19:25:00Z", "opponent": "Vitality", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "11", "t": "6", "ct": "5"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "5", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "11", "t": "7", "ct": "4"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394999/match", "vods": [{"game": 1, "url": "https://youtu.be/y9--hvRfpLU"}, {"game": 2, "url": "https://youtu.be/y9--hvRfpLU&t=3796"}, {"game": 3, "url": "https://youtu.be/y9--hvRfpLU&t=7375"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231784"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231786"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231787"}]}, "niko": {"ratings": []}}, {"id": "2026-06-14-natus-vincere", "date": "2026-06-14T17:40:00Z", "opponent": "Natus Vincere", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "3", "t": "0", "ct": "3"}}, {"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "1", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "19", "t": "7", "ct": "5"}, "opponent": {"rounds": "16", "t": "7", "ct": "5"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394991/match", "vods": [{"game": 1, "url": "https://youtu.be/lh9ePen6JFc?t=27"}, {"game": 2, "url": "https://youtu.be/lh9ePen6JFc?t=2336"}, {"game": 3, "url": "https://youtu.be/lh9ePen6JFc?t=5010"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231579"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231587"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231594"}]}, "niko": {"ratings": []}}, {"id": "2026-06-13-monte", "date": "2026-06-13T12:15:00Z", "opponent": "Monte", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "9", "t": "5", "ct": "4"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "6", "ct": "5"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "10", "t": "5", "ct": "5"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394982/match", "vods": [{"game": 1, "url": "https://youtu.be/uoMF_hhpvYg?t=38"}, {"game": 2, "url": "https://youtu.be/uoMF_hhpvYg?t=3309"}, {"game": 3, "url": "https://youtu.be/uoMF_hhpvYg?t=6643"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231432"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231450"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231459"}]}, "niko": {"ratings": []}}, {"id": "2026-06-12-betboom-team", "date": "2026-06-12T15:10:00Z", "opponent": "BetBoom Team", "score": "0-2", "result": "L", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "3", "ct": "8"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "3", "ct": "7"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Dust II", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394975/match", "vods": [{"game": 1, "url": "https://youtu.be/dYG20oU-FmM?t=29"}, {"game": 2, "url": "https://youtu.be/dYG20oU-FmM?t=3117"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231330"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231337"}]}, "niko": {"ratings": []}}, {"id": "2026-06-11-g2-esports", "date": "2026-06-11T15:05:00Z", "opponent": "G2 Esports", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 科隆 Major 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "3", "ct": "7"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "10", "ct": "3"}, "opponent": {"rounds": "8", "t": "6", "ct": "2"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "5", "ct": "7"}, "opponent": {"rounds": "13", "t": "5", "ct": "7"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394899/match", "vods": [{"game": 1, "url": "https://youtu.be/zZ_oaI45D1o?t=28"}, {"game": 2, "url": "https://youtu.be/zZ_oaI45D1o?t=3285"}, {"game": 3, "url": "https://youtu.be/zZ_oaI45D1o?t=6316"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=231272"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=231276"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=231279"}]}, "niko": {"ratings": []}}, {"id": "2026-05-24-legacy", "date": "2026-05-24T06:15:00Z", "opponent": "Legacy", "score": "1-3", "result": "L", "bo": "Bo5", "event": "CS 亚洲锦标赛 2026", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "11", "t": "6", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "3", "ct": "6"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "5", "t": "1", "ct": "4"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "6", "t": "3", "ct": "3"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Inferno", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394228/match", "vods": [{"game": 1, "url": "https://youtu.be/pnQSrk07Pyc&t=25"}, {"game": 2, "url": "https://youtu.be/pnQSrk07Pyc&t=3117"}, {"game": 3, "url": "https://youtu.be/pnQSrk07Pyc&t=6111"}, {"game": 4, "url": "https://youtu.be/pnQSrk07Pyc&t=8733"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229788"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229789"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=229795"}, {"game": 4, "url": "https://www.hltv.org/?pageid=188&matchid=229800"}]}, "niko": {"ratings": []}}, {"id": "2026-05-23-mouz", "date": "2026-05-23T05:00:00Z", "opponent": "MOUZ", "score": "2-1", "result": "W", "bo": "Bo3", "event": "CS 亚洲锦标赛 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "3", "ct": "4"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "7", "t": "4", "ct": "3"}}, {"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "10", "t": "2", "ct": "8"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394225/match", "vods": [{"game": 1, "url": "https://youtu.be/FN0bVk2eXb8&t=32"}, {"game": 2, "url": "https://youtu.be/FN0bVk2eXb8&t=2431"}, {"game": 3, "url": "https://youtu.be/FN0bVk2eXb8&t=5246"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229636"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229637"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=229638"}]}, "niko": {"ratings": []}}, {"id": "2026-05-22-legacy", "date": "2026-05-22T03:00:00Z", "opponent": "Legacy", "score": "2-0", "result": "W", "bo": "Bo3", "event": "CS 亚洲锦标赛 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "7", "t": "2", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "9", "t": "5", "ct": "4"}}, {"map": "Mirage", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394219/match", "vods": [{"game": 1, "url": "https://youtu.be/ZasYwSaAlno&t=26"}, {"game": 2, "url": "https://youtu.be/ZasYwSaAlno&t=2655"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229505"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229507"}]}, "niko": {"ratings": []}}, {"id": "2026-05-20-m80", "date": "2026-05-20T10:40:00Z", "opponent": "M80", "score": "2-0", "result": "W", "bo": "Bo3", "event": "CS 亚洲锦标赛 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "19", "t": "7", "ct": "5"}, "opponent": {"rounds": "15", "t": "7", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "11", "t": "3", "ct": "8"}}, {"map": "Mirage", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394208/match", "vods": [{"game": 1, "url": "https://youtu.be/x1t-QBI-mC8&t=37"}, {"game": 2, "url": "https://youtu.be/x1t-QBI-mC8&t=5014"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229329"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229343"}]}, "niko": {"ratings": []}}, {"id": "2026-05-20-bc-game-esports", "date": "2026-05-20T06:30:00Z", "opponent": "BC.Game Esports", "score": "13-11", "result": "W", "bo": "Bo1", "event": "CS 亚洲锦标赛 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "11", "t": "7", "ct": "4"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394201/match", "vods": [], "hltv_maps": []}, "niko": {"ratings": []}}, {"id": "2026-05-17-spirit", "date": "2026-05-17T11:00:00Z", "opponent": "Spirit", "score": "0-3", "result": "L", "bo": "Bo5", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "12", "t": "5", "ct": "7"}, "opponent": {"rounds": "16", "t": "5", "ct": "7"}}, {"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "3", "ct": "4"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "7", "ct": "3"}, "opponent": {"rounds": "13", "t": "9", "ct": "4"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}, {"map": "Anubis", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394156/match", "vods": [{"game": 1, "url": "https://youtu.be/k9E4wwLKXE0&t=31"}, {"game": 2, "url": "https://youtu.be/k9E4wwLKXE0&t=3786"}, {"game": 3, "url": "https://youtu.be/k9E4wwLKXE0&t=6326"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229132"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229137"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=229142"}]}, "niko": {"ratings": []}}, {"id": "2026-05-16-magic", "date": "2026-05-16T13:00:00Z", "opponent": "magic", "score": "2-0", "result": "W", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "7", "t": "6", "ct": "1"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "5", "t": "3", "ct": "2"}}, {"map": "Inferno", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394154/match", "vods": [{"game": 1, "url": "https://youtu.be/k0JcX60z74A&t=32"}, {"game": 2, "url": "https://youtu.be/k0JcX60z74A&t=2499"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=229071"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229076"}]}, "niko": {"ratings": []}}, {"id": "2026-05-15-furia", "date": "2026-05-15T15:40:00Z", "opponent": "FURIA", "score": "2-1", "result": "W", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "4", "ct": "5"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "22", "t": "6", "ct": "6"}, "opponent": {"rounds": "20", "t": "6", "ct": "6"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "19", "t": "7", "ct": "5"}, "opponent": {"rounds": "17", "t": "7", "ct": "5"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394152/match", "vods": [{"game": 1, "url": "https://youtu.be/SvjD8y85Qtk&t=28"}, {"game": 2, "url": "https://youtu.be/SvjD8y85Qtk&t=2891"}, {"game": 3, "url": "https://youtu.be/SvjD8y85Qtk&t=8631"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=228999"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=229003"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=229019"}]}, "niko": {"ratings": []}}, {"id": "2026-05-12-the-mongolz", "date": "2026-05-12T07:45:00Z", "opponent": "The MongolZ", "score": "2-1", "result": "W", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "8", "t": "3", "ct": "5"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "4", "ct": "7"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "4", "ct": "8"}, "opponent": {"rounds": "12", "t": "4", "ct": "8"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394142/match", "vods": [{"game": 1, "url": "https://youtu.be/1XHf_TP_H8c&t=37"}, {"game": 2, "url": "https://youtu.be/1XHf_TP_H8c&t=2797"}, {"game": 3, "url": "https://youtu.be/1XHf_TP_H8c&t=5884"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=228710"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=228717"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=228723"}]}, "niko": {"ratings": []}}, {"id": "2026-05-11-monte", "date": "2026-05-11T07:25:00Z", "opponent": "Monte", "score": "2-0", "result": "W", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "11", "t": "3", "ct": "8"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "10", "t": "6", "ct": "4"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394134/match", "vods": [{"game": 1, "url": "https://youtu.be/QAmGYlxnQAw&t=26"}, {"game": 2, "url": "https://youtu.be/QAmGYlxnQAw&t=3241"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=228588"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=228596"}]}, "niko": {"ratings": []}}, {"id": "2026-05-10-9z-team", "date": "2026-05-10T13:10:00Z", "opponent": "9z Team", "score": "1-2", "result": "L", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "8", "t": "0", "ct": "8"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "9", "t": "4", "ct": "5"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "1", "t": "0", "ct": "1"}, "opponent": {"rounds": "13", "t": "11", "ct": "2"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394130/match", "vods": [{"game": 1, "url": "https://youtu.be/Uk0f0VNm2-k?t=47"}, {"game": 2, "url": "https://youtu.be/Uk0f0VNm2-k?t=2848"}, {"game": 3, "url": "https://youtu.be/Uk0f0VNm2-k?t=5667"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=228519"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=228524"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=228532"}]}, "niko": {"ratings": []}}, {"id": "2026-05-09-k27", "date": "2026-05-09T10:25:00Z", "opponent": "K27", "score": "2-0", "result": "W", "bo": "Bo3", "event": "PGL 阿斯塔纳 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "5", "t": "3", "ct": "2"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "11", "t": "6", "ct": "5"}}, {"map": "Mirage", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2394120/match", "vods": [{"game": 1, "url": "https://youtu.be/B1odeockFAk?t=48"}, {"game": 2, "url": "https://youtu.be/B1odeockFAk?t=2431"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=228415"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=228422"}]}, "niko": {"ratings": []}}, {"id": "2026-04-19-furia", "date": "2026-04-19T13:30:00Z", "opponent": "FURIA", "score": "2-0", "result": "W", "bo": "Bo3", "event": "IEM 里约 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "11", "t": "4", "ct": "7"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "11", "t": "6", "ct": "5"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2393244/match", "vods": [{"game": 1, "url": "https://youtu.be/DY4tD8WLXU4&t=36"}, {"game": 2, "url": "https://youtu.be/DY4tD8WLXU4&t=3315"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=226776"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=226782"}]}, "niko": {"ratings": []}}, {"id": "2026-04-18-spirit", "date": "2026-04-18T15:00:00Z", "opponent": "Spirit", "score": "0-2", "result": "L", "bo": "Bo3", "event": "IEM 里约 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "1", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "4", "t": "4", "ct": "0"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2393242/match", "vods": [{"game": 1, "url": "https://youtu.be/fY_J9jXZFAw&t=32"}, {"game": 2, "url": "https://youtu.be/fY_J9jXZFAw&t=2613"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=226713"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=226717"}]}, "niko": {"ratings": []}}, {"id": "2026-04-15-vitality", "date": "2026-04-15T18:00:00Z", "opponent": "Vitality", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 里约 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "10", "t": "2", "ct": "8"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "6", "t": "1", "ct": "5"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}, {"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "3", "ct": "9"}, "opponent": {"rounds": "14", "t": "3", "ct": "9"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2393236/match", "vods": [{"game": 1, "url": "https://youtu.be/d8SYtVCxX0c?t=31"}, {"game": 2, "url": "https://youtu.be/d8SYtVCxX0c?t=2890"}, {"game": 3, "url": "https://youtu.be/d8SYtVCxX0c?t=5386"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=226614"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=226617"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=226619"}]}, "niko": {"ratings": []}}, {"id": "2026-04-14-spirit", "date": "2026-04-14T16:40:00Z", "opponent": "Spirit", "score": "2-0", "result": "W", "bo": "Bo3", "event": "IEM 里约 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "4", "t": "0", "ct": "4"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "5", "t": "1", "ct": "4"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2393226/match", "vods": [{"game": 1, "url": "https://youtu.be/zZOL-ZvBSKI?t=32"}, {"game": 2, "url": "https://youtu.be/zZOL-ZvBSKI?t=2316"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=226556"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=226560"}]}, "niko": {"ratings": []}}, {"id": "2026-04-13-3dmax", "date": "2026-04-13T16:15:00Z", "opponent": "3DMAX", "score": "2-0", "result": "W", "bo": "Bo3", "event": "IEM 里约 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "10", "ct": "3"}, "opponent": {"rounds": "10", "t": "9", "ct": "1"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "11", "ct": "2"}, "opponent": {"rounds": "1", "t": "0", "ct": "1"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2393084/match", "vods": [{"game": 1, "url": "https://youtu.be/efrXrz0mk1U?t=27"}, {"game": 2, "url": "https://youtu.be/efrXrz0mk1U?t=4121"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=226506"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=226508"}]}, "niko": {"ratings": []}}, {"id": "2026-03-27-parivision", "date": "2026-03-27T16:35:00Z", "opponent": "PARIVISION", "score": "0-2", "result": "L", "bo": "Bo3", "event": "BLAST 公开赛 鹿特丹站", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "3", "ct": "8"}, "opponent": {"rounds": "13", "t": "4", "ct": "9"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "5", "ct": "5"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}, {"map": "Anubis", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2391772/match", "vods": [{"game": 1, "url": "https://youtu.be/68ZihgDR18E&t=27"}, {"game": 2, "url": "https://youtu.be/68ZihgDR18E&t=3422"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=224252"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=224258"}]}, "niko": {"ratings": []}}, {"id": "2026-03-23-furia", "date": "2026-03-23T13:30:00Z", "opponent": "FURIA", "score": "2-1", "result": "W", "bo": "Bo3", "event": "BLAST 公开赛 鹿特丹站", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "11", "t": "4", "ct": "7"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "13", "t": "8", "ct": "4"}, "opponent": {"rounds": "16", "t": "8", "ct": "4"}}, {"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "10", "t": "1", "ct": "9"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2391768/match", "vods": [{"game": 1, "url": "https://youtu.be/0CXP73lvwxk&t=28"}, {"game": 2, "url": "https://youtu.be/0CXP73lvwxk&t=3546"}, {"game": 3, "url": "https://youtu.be/0CXP73lvwxk&t=8547"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=223686"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=223700"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=223712"}]}, "niko": {"ratings": []}}, {"id": "2026-03-22-tyloo", "date": "2026-03-22T11:00:00Z", "opponent": "TYLOO", "score": "2-1", "result": "W", "bo": "Bo3", "event": "BLAST 公开赛 鹿特丹站", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "14", "t": "7", "ct": "5"}, "opponent": {"rounds": "16", "t": "7", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "11", "ct": "2"}, "opponent": {"rounds": "1", "t": "0", "ct": "1"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "11", "ct": "2"}, "opponent": {"rounds": "2", "t": "1", "ct": "1"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2391764/match", "vods": [{"game": 1, "url": "https://youtu.be/Ja8sIK26HPk&t=26"}, {"game": 2, "url": "https://youtu.be/Ja8sIK26HPk&t=4308"}, {"game": 3, "url": "https://youtu.be/Ja8sIK26HPk&t=6158"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=223559"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=223563"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=223566"}]}, "niko": {"ratings": []}}, {"id": "2026-03-20-natus-vincere", "date": "2026-03-20T17:15:00Z", "opponent": "Natus Vincere", "score": "1-2", "result": "L", "bo": "Bo3", "event": "BLAST 公开赛 鹿特丹站", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "9", "t": "4", "ct": "5"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "5", "ct": "4"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "3", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2391757/match", "vods": [{"game": 1, "url": "https://youtu.be/F148a3KDBRY&t=22"}, {"game": 2, "url": "https://youtu.be/F148a3KDBRY&t=2912"}, {"game": 3, "url": "https://youtu.be/F148a3KDBRY&t=6259"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=223317"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=223329"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=223343"}]}, "niko": {"ratings": []}}, {"id": "2026-03-18-nrg", "date": "2026-03-18T10:00:00Z", "opponent": "NRG", "score": "2-0", "result": "W", "bo": "Bo3", "event": "BLAST 公开赛 鹿特丹站", "stage": "", "maps": [{"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "6", "t": "3", "ct": "3"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "8", "t": "2", "ct": "6"}}, {"map": "Anubis", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2390811/match", "vods": [{"game": 1, "url": "https://youtu.be/QFoFXxCfQKg&t=25"}, {"game": 2, "url": "https://youtu.be/QFoFXxCfQKg&t=2481"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=223072"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=223078"}]}, "niko": {"ratings": []}}, {"id": "2026-02-20-parivision", "date": "2026-02-20T08:00:00Z", "opponent": "PARIVISION", "score": "1-2", "result": "L", "bo": "Bo3", "event": "PGL 克卢日-纳波卡 2026", "stage": "", "maps": [{"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "14", "t": "5", "ct": "7"}, "opponent": {"rounds": "16", "t": "5", "ct": "7"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "7", "t": "4", "ct": "3"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "8", "t": "3", "ct": "5"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389980/match", "vods": [{"game": 1, "url": "https://youtu.be/cP4yD8B1dE0&t=23"}, {"game": 2, "url": "https://youtu.be/cP4yD8B1dE0&t=4040"}, {"game": 3, "url": "https://youtu.be/cP4yD8B1dE0&t=6855"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=219858"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=219865"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=219874"}]}, "niko": {"ratings": []}}, {"id": "2026-02-16-furia", "date": "2026-02-16T17:10:00Z", "opponent": "FURIA", "score": "2-1", "result": "W", "bo": "Bo3", "event": "PGL 克卢日-纳波卡 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "14", "t": "6", "ct": "6"}, "opponent": {"rounds": "16", "t": "6", "ct": "6"}}, {"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "2", "ct": "11"}, "opponent": {"rounds": "4", "t": "1", "ct": "3"}}, {"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "11", "t": "6", "ct": "5"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389969/match", "vods": [{"game": 1, "url": "https://youtu.be/tAp1ASGZYXQ&t=39"}, {"game": 2, "url": "https://youtu.be/tAp1ASGZYXQ&t=4069"}, {"game": 3, "url": "https://youtu.be/tAp1ASGZYXQ&t=6080"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=219421"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=219433"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=219446"}]}, "niko": {"ratings": []}}, {"id": "2026-02-15-faze-clan", "date": "2026-02-15T10:35:00Z", "opponent": "FaZe Clan", "score": "2-1", "result": "W", "bo": "Bo3", "event": "PGL 克卢日-纳波卡 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "9", "t": "6", "ct": "3"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "7", "ct": "4"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "4", "t": "2", "ct": "2"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389957/match", "vods": [{"game": 1, "url": "https://youtu.be/9KG2dAn_UHE&t=42"}, {"game": 2, "url": "https://youtu.be/9KG2dAn_UHE&t=3360"}, {"game": 3, "url": "https://youtu.be/9KG2dAn_UHE&t=6730"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=219220"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=219227"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=219233"}]}, "niko": {"ratings": []}}, {"id": "2026-02-14-3dmax", "date": "2026-02-14T14:35:00Z", "opponent": "3DMAX", "score": "2-0", "result": "W", "bo": "Bo3", "event": "PGL 克卢日-纳波卡 2026", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "7", "t": "5", "ct": "2"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "10", "t": "4", "ct": "6"}}, {"map": "Ancient", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389952/match", "vods": [{"game": 1, "url": "https://youtu.be/q5MxdY1ieO0&t=29"}, {"game": 2, "url": "https://youtu.be/q5MxdY1ieO0&t=2505"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=219122"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=219144"}]}, "niko": {"ratings": []}}, {"id": "2026-02-03-mouz", "date": "2026-02-03T19:10:00Z", "opponent": "MOUZ", "score": "0-2", "result": "L", "bo": "Bo3", "event": "IEM 克拉科夫 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "14", "t": "5", "ct": "7"}, "opponent": {"rounds": "16", "t": "5", "ct": "7"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "17", "t": "7", "ct": "5"}, "opponent": {"rounds": "19", "t": "7", "ct": "5"}}, {"map": "Ancient", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389660/match", "vods": [{"game": 1, "url": "https://youtu.be/HLuYZ0g1Spg?t=27"}, {"game": 2, "url": "https://youtu.be/HLuYZ0g1Spg?t=4443"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=218225"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=218238"}]}, "niko": {"ratings": []}}, {"id": "2026-02-03-3dmax", "date": "2026-02-03T13:00:00Z", "opponent": "3DMAX", "score": "2-0", "result": "W", "bo": "Bo3", "event": "IEM 克拉科夫 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "8", "ct": "5"}, "opponent": {"rounds": "5", "t": "1", "ct": "4"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "4", "ct": "9"}, "opponent": {"rounds": "9", "t": "1", "ct": "8"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389656/match", "vods": [{"game": 1, "url": "https://youtu.be/s2JZIKpQ-Nw?t=17"}, {"game": 2, "url": "https://youtu.be/s2JZIKpQ-Nw?t=2479"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=218180"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=218188"}]}, "niko": {"ratings": []}}, {"id": "2026-02-02-nrg", "date": "2026-02-02T15:30:00Z", "opponent": "NRG", "score": "2-1", "result": "W", "bo": "Bo3", "event": "IEM 克拉科夫 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "2", "ct": "11"}, "opponent": {"rounds": "5", "t": "1", "ct": "4"}}, {"map": "Ancient", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "2", "ct": "9"}, "opponent": {"rounds": "13", "t": "3", "ct": "10"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "9", "t": "2", "ct": "7"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389652/match", "vods": [{"game": 1, "url": "https://youtu.be/HIuV5VpRjHk?t=24"}, {"game": 2, "url": "https://youtu.be/HIuV5VpRjHk?t=2657"}, {"game": 3, "url": "https://youtu.be/HIuV5VpRjHk?t=5711"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=218113"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=218121"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=218127"}]}, "niko": {"ratings": []}}, {"id": "2026-02-01-aurora-gaming", "date": "2026-02-01T13:00:00Z", "opponent": "Aurora Gaming", "score": "1-2", "result": "L", "bo": "Bo3", "event": "IEM 克拉科夫 2026", "stage": "", "maps": [{"map": "Anubis", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "7", "t": "4", "ct": "3"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "10", "t": "4", "ct": "6"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "8", "t": "2", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389644/match", "vods": [{"game": 1, "url": "https://youtu.be/9SWiF67JE0g&t=22"}, {"game": 2, "url": "https://youtu.be/9SWiF67JE0g&t=2879"}, {"game": 3, "url": "https://youtu.be/9SWiF67JE0g&t=6238"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=218020"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=218030"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=218035"}]}, "niko": {"ratings": []}}, {"id": "2026-01-25-parivision", "date": "2026-01-25T15:00:00Z", "opponent": "PARIVISION", "score": "0-3", "result": "L", "bo": "Bo5", "event": "BLAST Bounty 冬季赛 2026", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "4", "ct": "5"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "7", "ct": "4"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "5", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "7"}}, {"map": "Ancient", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}, {"map": "Anubis", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389281/match", "vods": [{"game": 1, "url": "https://youtu.be/_eRzMSUmfQk&t=21"}, {"game": 2, "url": "https://youtu.be/_eRzMSUmfQk&t=3167"}, {"game": 3, "url": "https://youtu.be/_eRzMSUmfQk&t=6550"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=217514"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=217521"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=217527"}]}, "niko": {"ratings": []}}, {"id": "2026-01-24-vitality", "date": "2026-01-24T15:00:00Z", "opponent": "Vitality", "score": "2-1", "result": "W", "bo": "Bo3", "event": "BLAST Bounty 冬季赛 2026", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "10", "t": "5", "ct": "5"}}, {"map": "Anubis", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "4", "t": "1", "ct": "3"}, "opponent": {"rounds": "13", "t": "9", "ct": "4"}}, {"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "2", "ct": "11"}, "opponent": {"rounds": "6", "t": "1", "ct": "5"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389279/match", "vods": [{"game": 1, "url": "https://youtu.be/YQNqvCc-sOU&t=25"}, {"game": 2, "url": "https://youtu.be/YQNqvCc-sOU&t=3145"}, {"game": 3, "url": "https://youtu.be/YQNqvCc-sOU&t=5558"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=217414"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=217425"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=217431"}]}, "niko": {"ratings": []}}, {"id": "2026-01-22-liquid", "date": "2026-01-22T15:00:00Z", "opponent": "Liquid", "score": "2-0", "result": "W", "bo": "Bo3", "event": "BLAST Bounty 冬季赛 2026", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "6", "ct": "6"}, "opponent": {"rounds": "14", "t": "6", "ct": "6"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "8", "t": "5", "ct": "3"}}, {"map": "Anubis", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2389275/match", "vods": [{"game": 1, "url": "https://youtu.be/JxKFZHoZ_VI&t=3"}, {"game": 2, "url": "https://youtu.be/JxKFZHoZ_VI&t=4434"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=217200"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=217210"}]}, "niko": {"ratings": []}}, {"id": "2025-10-12-vitality", "date": "2025-10-12T15:00:00Z", "opponent": "Vitality", "score": "0-3", "result": "L", "bo": "Bo5", "event": "ESL 职业联赛 S22", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "10", "t": "6", "ct": "4"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}, {"map": "Train", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "4", "ct": "5"}, "opponent": {"rounds": "13", "t": "5", "ct": "8"}}, {"map": "Dust II", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "5", "t": "3", "ct": "2"}, "opponent": {"rounds": "13", "t": "10", "ct": "3"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}, {"map": "Mirage", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385970/match", "vods": [{"game": 1, "url": "https://youtu.be/vQ0XT31kACI?t=28"}, {"game": 2, "url": "https://youtu.be/vQ0XT31kACI?t=3569"}, {"game": 3, "url": "https://youtu.be/vQ0XT31kACI?t=6609"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=210632"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=210636"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=210644"}]}, "niko": {"ratings": []}}, {"id": "2025-10-11-mouz", "date": "2025-10-11T13:45:00Z", "opponent": "MOUZ", "score": "2-0", "result": "W", "bo": "Bo3", "event": "ESL 职业联赛 S22", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "6", "ct": "6"}, "opponent": {"rounds": "13", "t": "6", "ct": "6"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "7", "t": "2", "ct": "5"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385967/match", "vods": [{"game": 1, "url": "https://youtu.be/19X5Rze22OY?t=30"}, {"game": 2, "url": "https://youtu.be/19X5Rze22OY?t=4199"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=210550"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=210559"}]}, "niko": {"ratings": []}}, {"id": "2025-10-10-3dmax", "date": "2025-10-10T08:30:00Z", "opponent": "3DMAX", "score": "2-1", "result": "W", "bo": "Bo3", "event": "ESL 职业联赛 S22", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "9", "t": "5", "ct": "4"}, "opponent": {"rounds": "13", "t": "8", "ct": "5"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "9", "ct": "4"}, "opponent": {"rounds": "7", "t": "4", "ct": "3"}}, {"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "16", "t": "9", "ct": "3"}, "opponent": {"rounds": "13", "t": "9", "ct": "3"}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385963/match", "vods": [{"game": 1, "url": "https://youtu.be/Fcd5pnw6P60?t=29"}, {"game": 2, "url": "https://youtu.be/Fcd5pnw6P60?t=3291"}, {"game": 3, "url": "https://youtu.be/Fcd5pnw6P60?t=5854"}], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=210425"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=210431"}, {"game": 3, "url": "https://www.hltv.org/?pageid=188&matchid=210434"}]}, "niko": {"ratings": []}}, {"id": "2025-09-20-furia", "date": "2025-09-20T16:00:00Z", "opponent": "FURIA", "score": "0-2", "result": "L", "bo": "Bo3", "event": "FISSURE Playground #2", "stage": "", "maps": [{"map": "Train", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "12", "t": "7", "ct": "5"}, "opponent": {"rounds": "16", "t": "7", "ct": "5"}}, {"map": "Nuke", "vetoed": false, "falcons_win": false, "falcons": {"rounds": "11", "t": "6", "ct": "5"}, "opponent": {"rounds": "13", "t": "7", "ct": "6"}}, {"map": "Mirage", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385328/match", "vods": [], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=208306"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=208316"}]}, "niko": {"ratings": []}}, {"id": "2025-09-19-pain-gaming", "date": "2025-09-19T19:10:00Z", "opponent": "paiN Gaming", "score": "2-0", "result": "W", "bo": "Bo3", "event": "FISSURE Playground #2", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "4", "t": "4", "ct": "0"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "7", "ct": "6"}, "opponent": {"rounds": "6", "t": "1", "ct": "5"}}, {"map": "Nuke", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385326/match", "vods": [], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=208243"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=208249"}]}, "niko": {"ratings": []}}, {"id": "2025-09-15-faze-clan", "date": "2025-09-15T16:05:00Z", "opponent": "FaZe Clan", "score": "2-0", "result": "W", "bo": "Bo3", "event": "FISSURE Playground #2", "stage": "", "maps": [{"map": "Nuke", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "6", "ct": "7"}, "opponent": {"rounds": "11", "t": "5", "ct": "6"}}, {"map": "Dust II", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "5", "ct": "8"}, "opponent": {"rounds": "6", "t": "4", "ct": "2"}}, {"map": "Ancient", "vetoed": true, "falcons_win": true, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385312/match", "vods": [], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=207859"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=207869"}]}, "niko": {"ratings": []}}, {"id": "2025-09-14-legacy", "date": "2025-09-14T11:15:00Z", "opponent": "Legacy", "score": "2-0", "result": "W", "bo": "Bo3", "event": "FISSURE Playground #2", "stage": "", "maps": [{"map": "Inferno", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "3", "ct": "10"}, "opponent": {"rounds": "4", "t": "2", "ct": "2"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "19", "t": "4", "ct": "8"}, "opponent": {"rounds": "16", "t": "4", "ct": "8"}}, {"map": "Nuke", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385300/match", "vods": [], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=207699"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=207716"}]}, "niko": {"ratings": []}}, {"id": "2025-09-12-virtus-pro", "date": "2025-09-12T14:10:00Z", "opponent": "Virtus.pro", "score": "2-0", "result": "W", "bo": "Bo3", "event": "FISSURE Playground #2", "stage": "", "maps": [{"map": "Mirage", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "2", "ct": "11"}, "opponent": {"rounds": "1", "t": "1", "ct": "0"}}, {"map": "Ancient", "vetoed": false, "falcons_win": true, "falcons": {"rounds": "13", "t": "11", "ct": "2"}, "opponent": {"rounds": "2", "t": "1", "ct": "1"}}, {"map": "Dust II", "vetoed": true, "falcons_win": false, "falcons": {"rounds": "", "t": "", "ct": ""}, "opponent": {"rounds": "", "t": "", "ct": ""}}], "links": {"hltv_match": "https://www.hltv.org/matches/2385292/match", "vods": [], "hltv_maps": [{"game": 1, "url": "https://www.hltv.org/?pageid=188&matchid=207433"}, {"game": 2, "url": "https://www.hltv.org/?pageid=188&matchid=207439"}]}, "niko": {"ratings": []}}], "year_stats": {"span": "近一年", "from": "2025-09-12", "to": "2026-09-05", "matches": 58, "wins": 41, "losses": 17, "win_rate": 70.7, "events": 13}}</script>
+<script>
+
+const REPO = 'xiaohuya520/niko';
+let D = JSON.parse(document.getElementById('niko-data').textContent);
+let FRESH = null;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const params = new URLSearchParams(location.search);
+
+function bj(iso){
+  if(!iso) return '';
+  const d = new Date(iso), p = n => String(n).padStart(2,'0');
+  const wk = ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${wk} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function boText(bo){ return {Bo1:'单图决胜',Bo3:'三局两胜',Bo5:'五局三胜'}[bo] || bo || ''; }
+/* 地图名中文化（保留英文原名，CS 玩家两种叫法都在用） */
+const MAP_ZH = {'Dust II':'炙热沙城 II','Mirage':'荒漠迷城','Inferno':'炼狱小镇',
+  'Nuke':'核子危机','Ancient':'远古遗迹','Anubis':'阿努比斯神庙',
+  'Train':'列车停放站','Overpass':'死亡游乐园','Vertigo':'殒命大厦'};
+function mapName(m){
+  const zh = MAP_ZH[m];
+  return zh ? `${esc(zh)}<span class="map-en">${esc(m)}</span>` : esc(m);
+}
+function tierText(t){ return String(t||'').replace('S-Tier','S 级').replace('A-Tier','A 级'); }
+function ini(id){ return esc(String(id||'?').slice(0,2).toUpperCase()); }
+
+/* 头像：有图用图，无图或加载失败用首两位字母兜底 */
+function avatar(src, name, cls){
+  const ph = `<div class="av-ph av-ph-${cls}">${ini(name)}</div>`;
+  if(!src) return ph;
+  // onerror 里的 HTML 必须把双引号转成实体，否则会提前闭合属性
+  const fb = ph.replace(/"/g, '&quot;').replace(/\n/g, '');
+  return `<img class="av av-${cls}" src="${esc(src)}" alt="${esc(name)}"
+    onerror="this.outerHTML='${fb}'">`;
+}
+function dataOf(){ return FRESH || D; }
+
+async function pullNewest(){
+  const urls = [];
+  if(REPO && REPO !== 'xiaohuya520/niko'){
+    urls.push(['https://cdn.jsdelivr.net/gh/' + REPO + '@main/data.json', 'jsDelivr']);
+    urls.push(['https://raw.githubusercontent.com/' + REPO + '/main/data.json', 'GitHub 直连']);
+  }
+  urls.push(['./data.json', '同源']);
+  for(const [u, tag] of urls){
+    try{
+      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) continue;
+      const d = await r.json();
+      if(d && d.recent_matches){ FRESH = d; return tag; }
+    }catch(e){}
+  }
+  return null;
+}
+async function sync(labelEl){
+  const tag = await pullNewest();
+  if(labelEl) labelEl.textContent = tag
+    ? `● 已同步最新数据（${tag}）`
+    : '○ 离线缓存（未能联网）';
+  if(tag) { const cur = location.hash; }
+  return tag;
+}
+function startCountdown(target, onChange){
+  const el = {
+    d: document.getElementById('cdD'), h: document.getElementById('cdH'),
+    m: document.getElementById('cdM'), s: document.getElementById('cdS')
+  };
+  if(!el.d) return;
+  const tick = () => {
+    let diff = target ? (new Date(target) - Date.now()) / 1000 : 0;
+    if(diff < 0) diff = 0;
+    const dd = Math.floor(diff / 86400), hh = Math.floor(diff % 86400 / 3600),
+          mm = Math.floor(diff % 3600 / 60), ss = Math.floor(diff % 60);
+    el.d.textContent = dd; el.h.textContent = String(hh).padStart(2,'0');
+    el.m.textContent = String(mm).padStart(2,'0'); el.s.textContent = String(ss).padStart(2,'0');
+    const st = document.getElementById('statusTxt'), dot = document.getElementById('dot');
+    if(st && diff <= 0){ st.textContent = '进行中'; dot.classList.add('live'); }
+    else if(st){ st.textContent = '待战'; }
+  };
+  tick(); setInterval(tick, 1000);
+}
+function drawCrosshair(x, boxId){
+  const box = document.getElementById(boxId || 'xhBox');
+  if(!box || !x || !x.style) return;
+  const len = 6 + Number(x.size || 1) * 2;
+  const th = Number(x.thickness || 1);
+  const gap = Math.abs(Number(x.gap || 0));
+  const c = document.createElement('div');
+  c.style.cssText = 'position:relative;width:0;height:0';
+  const mk = () => { const i = document.createElement('i'); return i; };
+  // 用四个小方块模拟 CS style 4 准星
+  [[0,-gap-len],[0,gap],[-gap-len,0],[gap,0]].forEach(([lx,ly]) => {
+    const i = mk();
+    i.style.width = (lx === 0 ? th : len) + 'px';
+    i.style.height = (lx === 0 ? len : th) + 'px';
+    i.style.left = lx + 'px';
+    i.style.top = ly + 'px';
+    c.appendChild(i);
+  });
+  box.innerHTML = ''; box.appendChild(c);
+}
+
+function render(){
+  const d = dataOf(), id = params.get('id');
+  const m = d.recent_matches.find(x => x.id === id);
+  const app = document.getElementById('app');
+  if(!m){
+    app.innerHTML = `<div class="back"><a class="lk" href="index.html">‹ 返回</a></div>
+      <div class="empty" style="margin-top:30px">找不到这场比赛<br><br>
+      <a class="lk" href="index.html">返回首页</a></div>`;
+    return;
+  }
+  const played = (m.maps||[]).filter(p => !p.vetoed);
+  const vetoed = (m.maps||[]).filter(p => p.vetoed);
+  const rs = (m.niko && m.niko.ratings) || [];
+  const avg = rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null;
+
+  const maxRound = Math.max(...played.map(p =>
+    Math.max(Number(p.falcons.rounds)||0, Number(p.opponent.rounds)||0)), 13);
+
+  const mapHtml = played.map((p, i) => {
+    const fw = p.falcons_win;
+    const fr = Number(p.falcons.rounds)||0, orr = Number(p.opponent.rounds)||0;
+    return `<div class="map ${fw ? 'W' : 'L'}">
+      <div class="map-h">
+        <b>第 ${i+1} 图 · ${mapName(p.map)}</b>
+        <em>${fr + orr > 24 ? '加时 · ' : ''}共 ${fr + orr} 回合</em>
+        <div class="map-res ${fw?'W':'L'}">${fw ? '胜' : '负'} ${fr}-${orr}</div>
+      </div>
+      <div class="mline ${fw?'':'L'}">
+        <div class="who">${esc(d.player.nick)}</div>
+        <div class="rounds">${fr}</div>
+        <div class="tbar"><i style="width:${Math.min(100, fr/maxRound*100)}%"></i></div>
+        <div class="halves">进攻 ${esc(p.falcons.t)||'—'} / 防守 ${esc(p.falcons.ct)||'—'}</div>
+      </div>
+      <div class="mline ${fw?'L':''}">
+        <div class="who">${esc(m.opponent)}</div>
+        <div class="rounds">${orr}</div>
+        <div class="tbar"><i style="width:${Math.min(100, orr/maxRound*100)}%"></i></div>
+        <div class="halves">进攻 ${esc(p.opponent.t)||'—'} / 防守 ${esc(p.opponent.ct)||'—'}</div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">暂无逐图数据</div>';
+
+  const vetoHtml = vetoed.length ? `
+    <div class="sec">
+      <div class="sec-h"><b>未选用地图</b><i></i><em>双方已禁用</em></div>
+      <div class="rows">${vetoed.map(p => `
+        <div class="map veto" style="margin-bottom:0">
+          <div class="map-h"><b>${mapName(p.map)}</b><em>Bo${(m.maps||[]).length>3?3:1} 未启用</em></div>
+        </div>`).join('')}</div>
+    </div>` : '';
+
+  const links = [];
+  if(m.links && m.links.hltv_match) links.push([m.links.hltv_match, 'HLTV 全场统计']);
+  (m.links && m.links.hltv_maps || []).forEach(g =>
+    links.push([g.url, `第 ${g.game} 图 HLTV 数据`]));
+  (m.links && m.links.vods || []).forEach(v =>
+    links.push([v.url, `第 ${v.game} 图录像`]));
+  const linkHtml = links.length
+    ? `<div class="links">${links.map(([u,t]) =>
+        `<a class="lk" href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join('')}</div>`
+    : '';
+
+  app.innerHTML = `
+  <div class="back"><a class="lk" href="index.html">‹ 返回首页</a></div>
+  <div class="hero">
+    <div class="hero-top"><span class="tag">比赛详情</span></div>
+    <div class="hero-body">
+      <div class="vs">
+        <div class="team">FALCONS</div>
+        <div class="vs-mid">${esc(m.score)}</div>
+        <div class="team">${esc(m.opponent)}</div>
+      </div>
+      <div class="hero-sub">${esc(bj(m.date))}</div>
+      <div class="hero-note">${m.result === 'W' ? '取胜' : '落败'} · ${boText(m.bo)} · ${esc(m.event)}</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h"><b>逐图详情</b><i></i><em>${played.length} 张地图</em></div>
+    ${mapHtml}
+  </div>
+
+  ${vetoHtml}
+
+  <div class="sec">
+    <div class="sec-h"><b>${esc(d.player.nick)} 本场数据</b><i></i><em>HLTV</em></div>
+    <div class="grid">
+      <div class="st"><span>系列赛评分</span><b>${avg !== null ? avg.toFixed(2) : '—'}</b></div>
+      ${(m.niko||{}).kd ? `<div class="st"><span>击杀 / 死亡</span><b>${esc(m.niko.kd)}</b></div>` : ''}
+      ${(m.niko||{}).adr ? `<div class="st"><span>场均伤害 ADR</span><b>${esc(m.niko.adr)}</b></div>` : ''}
+    </div>
+    ${(m.niko||{}).note ? `<div class="kv" style="margin-top:10px">
+      <div class="kv-row"><span>备注</span><b>${esc(m.niko.note)}</b></div></div>` : ''}
+    ${!avg && !(m.niko||{}).kd ? '<div class="empty">本场尚未核对个人数据</div>' : ''}
+  </div>
+
+  ${linkHtml ? `<div class="sec"><div class="sec-h"><b>相关链接</b><i></i><em>跳转外部站点</em></div>${linkHtml}</div>` : ''}
+
+  <div class="syncbar"><span id="liveStatus">○ 正在获取最新数据…</span></div>
+  <div class="foot">
+    地图回合按「进攻方 / 防守方」拆分；加时回合不计入该项统计。<br>
+    数据来源：Liquipedia（CC BY-SA 3.0）。最近更新：2026-09-10T04:25:27+00:00
+  </div>`;
+}
+
+async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
+
+render();
+boot();
+</script>
+</body>
+</html>
