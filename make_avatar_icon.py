@@ -1,14 +1,16 @@
-"""用 NiKo 本人高清照片生成主屏图标 + 站内头像。
+"""用 NiKo 本人高清照片生成主屏图标 + 站内头像（Falcons 白色队服版）。
 
 流程：
-  1. 从 Liquipedia 下载原图（assets/_src/NiKo_orig.jpg，2048x1366）
-  2. Haar 级联做人脸检测，算出脸部中心
-  3. 以脸为中心裁正方形（头顶留白少一点、下巴下方留到胸口）
-  4. LANCZOS 降采样 + 轻度 USM 锐化，输出全档位图标
+  1. 原图 assets/_src/NiKo_orig.jpg（Liquipedia CC-BY-SA）
+  2. Haar 级联人脸检测，取最大的一张脸
+  3. 以脸为基准裁两个不同的取景：
+       - 站内头像：留白多（frame 大），能看到队服，方便辨认 Falcons
+       - 主屏图标：脸占满（frame 小），180px 下五官清晰，才是"高清头像"
+  4. LANCZOS 降采样 + 轻度 USM 锐化输出各档位
 
 用法：
-  python make_avatar_icon.py              # 正常生成
-  python make_avatar_icon.py --debug      # 额外输出裁切框可视化，人工核对用
+  python make_avatar_icon.py            # 正常生成
+  python make_avatar_icon.py --debug    # 额外输出裁切框可视化
 """
 import pathlib
 import sys
@@ -25,61 +27,42 @@ PLAYERS = ROOT / "assets" / "players"
 OUT.mkdir(parents=True, exist_ok=True)
 PLAYERS.mkdir(parents=True, exist_ok=True)
 
-MASTER = 1024          # 图标母版尺寸
-FRAME = 3.4            # 取景系数：方形边长 ≈ 脸高 * FRAME（越大留白越多）
-EYE_BIAS = 0.38        # 方框中心相对脸心下移的比例（保留发际线以上空间）
+MASTER = 1024                 # 图标母版尺寸
+ICON_FRAME = 2.05             # 图标取景系数（小 → 脸占满）
+ICON_BIAS = 0.15              # 图标中心相对脸心下移比例
+# 头像取景收得比较紧：原图右下角有 BLAST 赛事水印，
+# 放宽取景会把水印裁进来，故边长控制在脸高 2 倍左右、避开右下角。
+AVATAR_FRAME = 2.0            # 站内头像取景系数（脸高倍数）
+AVATAR_BIAS = 0.25            # 头像中心相对脸心下移比例（略下移，露出队徽/赞助）
 
 
 def detect_face(bgr):
     g = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     g = cv2.equalizeHist(g)
     clf = cv2.CascadeClassifier(str(CASCADE))
-    faces = clf.detectMultiScale(g, scaleFactor=1.08, minNeighbors=6,
-                                 minSize=(60, 60))
+    faces = clf.detectMultiScale(g, scaleFactor=1.08, minNeighbors=6, minSize=(60, 60))
     if len(faces) == 0:
-        # 放宽再试一次
-        faces = clf.detectMultiScale(g, scaleFactor=1.05, minNeighbors=3,
-                                     minSize=(40, 40))
+        faces = clf.detectMultiScale(g, scaleFactor=1.05, minNeighbors=3, minSize=(40, 40))
     if len(faces) == 0:
         return None
-    # 取面积最大的一张脸
     x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
     return (int(x), int(y), int(w), int(h))
 
 
-def pad_top_mirror(img, need, blur=9):
-    """在图像顶部拼一条镜像翻转 + 模糊的延展带。
-
-    NiKo 这张原图的头顶几乎贴着照片上边缘，直接裁方形会切掉头发。
-    用镜像延展补出头部上方的空间，观感自然，不像硬填色。
-    """
-    if need <= 0:
-        return img, 0
-    strip = img.crop((0, 0, img.width, min(need, img.height))).transpose(
-        Image.FLIP_TOP_BOTTOM)
-    if strip.height < need:                       # 不够就先拉伸补齐
-        strip = strip.resize((img.width, need), Image.LANCZOS)
-    strip = strip.filter(ImageFilter.GaussianBlur(blur))
-    canvas = Image.new("RGB", (img.width, img.height + need))
-    canvas.paste(strip, (0, 0))
-    canvas.paste(img, (0, need))
-    return canvas, need
-
-
-def square_box(img_w, img_h, face, frame=FRAME, bias=EYE_BIAS):
-    """按脸的位置与大小算一个正方形裁切框，并夹在图像内。"""
+def square_box(img_w, img_h, face, frame, bias):
     fx, fy, fw, fh = face
     cx = fx + fw / 2
-    cy = fy + fh / 2 + fh * bias          # 中心下移，给头顶留空间
-    side = fh * frame
-    # 若超出边界，先缩边长再平移，保证框完整落在图内
-    side = min(side, img_w, img_h)
-    x0 = cx - side / 2
-    y0 = cy - side / 2
-    x0 = min(max(0.0, x0), img_w - side)
-    y0 = min(max(0.0, y0), img_h - side)
+    cy = fy + fh / 2 + fh * bias
+    side = min(fh * frame, img_w, img_h)
+    x0 = min(max(0.0, cx - side / 2), img_w - side)
+    y0 = min(max(0.0, cy - side / 2), img_h - side)
     return (int(round(x0)), int(round(y0)),
             int(round(x0 + side)), int(round(y0 + side)))
+
+
+def crop_square(im, box, master=MASTER):
+    c = im.crop(box).resize((master, master), Image.LANCZOS)
+    return c.filter(ImageFilter.UnsharpMask(radius=1.2, percent=85, threshold=2))
 
 
 def main():
@@ -92,56 +75,44 @@ def main():
         bgr = cv2.imread(str(SRC))
     h, w = bgr.shape[:2]
     print("原图:", w, "x", h)
+    rgb = Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
 
     face = detect_face(bgr)
     if face:
-        fx, fy, fw, fh = face
-        print(f"检测到人脸: x={fx} y={fy} {fw}x{fh} "
-              f"(占图高 {fh/h*100:.1f}%)")
-
-        rgb_full = Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
-        # 头顶至少留 0.5 个脸高，不够就镜像延展补
-        rgb_full, pad = pad_top_mirror(rgb_full, int(fh * 0.5) - fy)
-        if pad:
-            print(f"顶部镜像延展 {pad}px，避免切到头发")
-            face = (fx, fy + pad, fw, fh)
-        box = square_box(rgb_full.width, rgb_full.height, face)
-        im = rgb_full
+        print(f"人脸: x={face[0]} y={face[1]} {face[2]}x{face[3]} (占图高 {face[3]/h*100:.1f}%)")
     else:
         print("未检测到人脸，退化为居中裁切")
-        im = Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
-        side = min(w, h)
-        box = ((w - side) // 2, (h - side) // 2,
-               (w - side) // 2 + side, (h - side) // 2 + side)
-    print("裁切框:", box)
 
-    if face:
-        side = box[2] - box[0]
-        top_gap = face[1] - box[1]                 # 脸框上方留白
-        print(f"构图：方形边长 {side}px，"
-              f"头顶留白 {top_gap}px（{top_gap/side*100:.1f}%），"
-              f"脸高占 {face[3]/side*100:.1f}%")
+    def box_for(frame, bias):
+        if face:
+            return square_box(w, h, face, frame, bias)
+        side = min(w, h)
+        return ((w - side) // 2, (h - side) // 2,
+                (w - side) // 2 + side, (h - side) // 2 + side)
+
+    avatar_box = box_for(AVATAR_FRAME, AVATAR_BIAS)
+    icon_box = box_for(ICON_FRAME, ICON_BIAS)
+    print("头像裁切框:", avatar_box, "  图标裁切框:", icon_box)
 
     if "--debug" in sys.argv:
-        dbg = im.copy()
         from PIL import ImageDraw
+        dbg = rgb.copy()
         d = ImageDraw.Draw(dbg)
-        d.rectangle(box, outline=(255, 0, 0), width=6)
+        d.rectangle(avatar_box, outline=(255, 0, 0), width=6)
+        d.rectangle(icon_box, outline=(0, 160, 255), width=6)
         if face:
-            fx, fy, fw, fh = face
-            d.rectangle((fx, fy, fx + fw, fy + fh), outline=(0, 255, 0), width=6)
-        dbg.resize((dbg.width // 3, dbg.height // 3),
-                   Image.LANCZOS).save(ROOT / "assets" / "_src" / "crop_debug.png")
-        print("裁切预览已保存 assets/_src/crop_debug.png")
+            d.rectangle((face[0], face[1], face[0] + face[2], face[1] + face[3]),
+                        outline=(0, 255, 0), width=6)
+        dbg.resize((dbg.width // 3, dbg.height // 3), Image.LANCZOS).save(
+            ROOT / "assets" / "_src" / "crop_debug.png")
+        print("裁切预览 -> assets/_src/crop_debug.png")
 
-    crop = im.crop(box)
-    master = crop.resize((MASTER, MASTER), Image.LANCZOS)
-    # 轻度锐化：小尺寸下更"精神"，又不至于出白边
-    master = master.filter(ImageFilter.UnsharpMask(radius=1.2, percent=85, threshold=2))
+    # 主屏图标：脸部特写母版
+    icon_master = crop_square(rgb, icon_box)
+    # 站内头像：能看到队服的母版
+    avatar_master = crop_square(rgb, avatar_box)
 
     out_sizes = {
-        # 不再产出 1024 PNG：照片型 PNG 有 1MB 级体积，而 iOS 主屏最高只用到 180，
-        # Android 用 512 足够，多余档位只会白耗流量。
         "icon-512.png": 512,            # PWA / Android 最高档
         "icon-192.png": 192,            # PWA / Android
         "apple-touch-icon.png": 180,    # iOS 主屏标准档
@@ -151,14 +122,12 @@ def main():
         "favicon.png": 32,
     }
     for name, size in out_sizes.items():
-        master.resize((size, size), Image.LANCZOS).save(
-            OUT / name, optimize=True)
+        icon_master.resize((size, size), Image.LANCZOS).save(OUT / name, optimize=True)
         print(f"{name:26s} {size}x{size}")
 
-    # 站内头像：512 足够高清，体积可控
-    master.resize((512, 512), Image.LANCZOS).save(
+    avatar_master.resize((512, 512), Image.LANCZOS).save(
         PLAYERS / "NiKo.jpg", quality=90, optimize=True)
-    print("assets/players/NiKo.jpg      512x512 (站内头像同步高清化)")
+    print("assets/players/NiKo.jpg      512x512（露队服）")
     return 0
 
 
