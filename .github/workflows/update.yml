@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/30 * * * *"   # 每 30 分钟（GitHub 免费账户可能有几分钟排队延迟，属正常）
   workflow_dispatch:         # 允许在 Actions 页面手动点 "Run workflow" 立即测试
+  push:                      # 代码/配置一改就重抓一次
+    branches: [main]         # Actions 自己提交 data.json 不会触发新的运行，因此不会死循环
+    paths-ignore:
+      - "data.json"
+      - "*.md"
 
 permissions:
   contents: write
