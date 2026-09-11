@@ -73,14 +73,14 @@ static void render_player(char *o, size_t n) {
     snprintf(o, n,
         "PLAYER CARD\n"
         "%s / %s\n"
-        "Age %d  %s  %s\n"
+        "%s  %s\n"
         "Rate %.2f  K/D %.2f\n"
         "ADR %.1f  HS%% %d\n"
         "AIM   %s %d\n"
         "CLUT  %s %d\n"
         "IQ    %s %d\n"
         "UP/DN:player OK:next",
-        p->name, p->team, p->age, p->ba, p->role,
+        p->name, p->team, p->ba, p->role,
         p->rating, p->kd, p->adr, p->hs,
         b1, p->aim, b2, p->clut, b3, p->iq);
 }
