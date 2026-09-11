@@ -32,6 +32,12 @@ CONFIG_LV_MEM_SIZE_KILOBYTES=32
 # 中文字体(cs_font_cn16)位图约 380KB,glyph 位图偏移会超过 64KB,
 # 开启 32 位位图索引,避免定点截断导致字形错乱。
 CONFIG_LV_FONT_FMT_TXT_LARGE=y
+# cs_font_cn16 由 lv_font_conv 以 --format lvgl(默认压缩)生成,
+# bitmap_format=1(LV_FONT_FMT_TXT_COMPRESSED)。LVGL 解码压缩字体必须开此开关,
+# 否则字形 bitmap 全空、中文标签只留框架不画字(配网页/状态栏中文均空白)。
+# 体积:压缩位图约 296KB;若改为 --no-compress 未压缩约 492KB(多占 ~196KB),
+# 当前 app 余量仅 ~282KB,故保持压缩 + 仅开此解码开关最稳妥。
+CONFIG_LV_USE_FONT_COMPRESSED=y
 
 # --- HTTPS / 联网数据 ---
 # 数据源走 https(jsDelivr CDN),需要根证书包来做 TLS 校验。
