@@ -241,6 +241,89 @@ a{color:inherit;text-decoration:none}
 .st.hl b{background:none;-webkit-text-fill-color:var(--win);color:var(--win)}
 .st-sub{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:4px;letter-spacing:.04em}
 
+/* === 战绩总览仪表盘（近一年战绩） === */
+.yb{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:17px;
+  box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.yb::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad);opacity:.85}
+.yb-nums{display:flex;align-items:flex-end;gap:10px}
+.yb-n{flex:none;min-width:62px}
+.yb-n b{display:block;font-family:var(--tech);font-size:34px;font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums}
+.yb-n span{display:block;font-family:var(--mono);font-size:11px;color:var(--ink2);
+  letter-spacing:.12em;margin-top:5px}
+.yb-n.w b{color:var(--win)}
+.yb-n.l b{color:var(--loss)}
+.yb-rate{margin-left:auto;text-align:right}
+.yb-rate b{display:block;font-family:var(--tech);font-size:34px;font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums;background:var(--grad-num);-webkit-background-clip:text;
+  background-clip:text;-webkit-text-fill-color:transparent;color:var(--amber)}
+.yb-rate span{display:block;font-family:var(--mono);font-size:11px;color:var(--ink2);
+  letter-spacing:.12em;margin-top:5px}
+.yb-bar{position:relative;height:9px;border-radius:999px;background:var(--loss-bg);margin-top:15px}
+.yb-bar i{display:block;height:100%;border-radius:999px;
+  background:linear-gradient(90deg,#15B981,#1FB6C9)}
+.yb-bar u{position:absolute;top:-3px;width:2px;height:15px;background:var(--ink);
+  border-radius:2px;opacity:.55}
+.yb-legend{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;
+  color:var(--ink2);margin-top:7px;letter-spacing:.05em}
+.yb-sub{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
+.yb-tag{font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--panel2);
+  border:1px solid var(--line);border-radius:999px;padding:4px 10px;letter-spacing:.04em}
+.yb-tag b{color:var(--ink);font-weight:700}
+.yb-blk{margin-top:15px;padding-top:13px;border-top:1px dashed var(--line-soft)}
+.yb-h{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+.yb-h b{font-size:14px;color:var(--ink)}
+.yb-h em{font-family:var(--mono);font-size:11px;color:var(--ink2);font-style:normal;letter-spacing:.05em}
+.yb-form{display:flex;gap:5px}
+.ff{flex:1;height:27px;border-radius:7px;display:grid;place-items:center;cursor:pointer;
+  font-family:var(--mono);font-size:10px;font-weight:700;color:#fff;transition:transform .16s}
+.ff.W{background:linear-gradient(180deg,#19C48C,#0E9C6B);box-shadow:0 5px 12px -7px rgba(21,185,129,.9)}
+.ff.L{background:linear-gradient(180deg,#F2687E,#DC3E57);box-shadow:0 5px 12px -7px rgba(240,86,110,.9)}
+.ff:active{transform:scale(.88)}
+.yb-form-x{display:flex;gap:5px;margin-top:6px}
+.yb-form-x span{flex:1;text-align:center;font-family:var(--mono);font-size:9px;color:var(--dim)}
+.yk{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}
+.yk-i{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px 8px;text-align:center}
+.yk-i b{display:block;font-family:var(--tech);font-size:21px;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums;line-height:1}
+.yk-i b.w{color:var(--win)} .yk-i b.l{color:var(--loss)}
+.yk-i span{display:block;font-family:var(--mono);font-size:10px;color:var(--ink2);
+  margin-top:5px;letter-spacing:.04em}
+.yb-mon{display:flex;align-items:flex-end;gap:4px;height:62px}
+.yb-mon .mo{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;
+  background:var(--panel2);border-radius:5px;overflow:hidden}
+.yb-mon .mo i{display:block;width:100%}
+.yb-mon .mo i.w{background:linear-gradient(180deg,#19C48C,#0E9C6B)}
+.yb-mon .mo i.l{background:linear-gradient(180deg,#F2687E,#DC3E57)}
+.yb-mon-x{display:flex;gap:4px;margin-top:5px}
+.yb-mon-x span{flex:1;text-align:center;font-family:var(--mono);font-size:9px;color:var(--dim)}
+
+/* === 地图池胜率榜 === */
+.pool{margin-top:6px}
+.pool-row{display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px dashed var(--line-soft)}
+.pool-row:last-child{border-bottom:none}
+.pool-n{flex:none;width:60px;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink)}
+.pool-b{flex:1;height:8px;background:var(--panel3);border-radius:999px;overflow:hidden}
+.pool-b i{display:block;height:100%;border-radius:999px;background:var(--grad)}
+.pool-v{flex:none;width:76px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.pool-v b{color:var(--ink);font-weight:700}
+
+/* === 分站战绩横滑 === */
+.eboard{display:flex;gap:10px;overflow-x:auto;padding-bottom:5px;margin-top:12px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.eb{flex:0 0 auto;width:134px;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:12px;box-shadow:var(--shadow-sm);scroll-snap-align:start}
+.eb .et{font-size:13px;font-weight:700;color:var(--ink);line-height:1.35;height:35px;overflow:hidden}
+.eb .er{display:flex;align-items:baseline;gap:6px;margin-top:7px}
+.eb .er b{font-family:var(--tech);font-size:20px;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums;line-height:1}
+.eb .er em{font-family:var(--mono);font-size:11px;color:var(--ink2);font-style:normal}
+.eb .ebar{height:6px;border-radius:999px;background:var(--panel3);margin-top:9px;overflow:hidden}
+.eb .ebar i{display:block;height:100%;border-radius:999px;
+  background:linear-gradient(90deg,#15B981,#1FB6C9)}
+.eb .ebar i.low{background:linear-gradient(90deg,#F0904A,#F0566E)}
+
 /* === 资料表 === */
 .kv{background:var(--panel);border:1px solid var(--line);border-radius:20px;
   box-shadow:var(--shadow-sm);overflow:hidden}
@@ -898,7 +981,8 @@ async function pullEvent(){
       const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
       if(!r.ok) continue;
       const d = await r.json();
-      if(d && d.events){ return {data:d, tag}; }
+      // 同样要求「真的有赛事」：空数组 [] 也是 truthy，不能只看真值
+      if(d && Array.isArray(d.events) && d.events.length){ return {data:d, tag}; }
     }catch(e){}
   }
   return null;
@@ -1043,6 +1127,15 @@ function featuredEvent(){
   return EVS.find(x => x.id === (d.featured && d.featured.id)) || EVS[0];
 }
 
+/* 数据质量分 = 系列赛场次数 + 赛季统计场次数。
+   上游定时任务一旦抓取失败，会产出「结构完整但 recent_matches 为空」的
+   data.json 并覆盖仓库里的好数据；若照单全收，页面会从有数据瞬间变成全是 0。
+   这里给远端数据设下限：低于内置数据 75% 直接丢弃，宁可用内置/旧数据。 */
+function dataScore(d){
+  if(!d || typeof d !== 'object') return -1;
+  if(!Array.isArray(d.recent_matches)) return -1;
+  return d.recent_matches.length + (Number((d.year_stats || {}).matches) || 0);
+}
 async function pullNewest(){
   const urls = [];
   if(REPO && REPO !== 'xiaohuya520/niko'){
@@ -1050,22 +1143,28 @@ async function pullNewest(){
     urls.push(['https://raw.githubusercontent.com/' + REPO + '/main/data.json', 'GitHub 直连']);
   }
   urls.push(['./data.json', '同源']);
-  for(const [u, tag] of urls){
+  const floor = dataScore(D) * 0.75;        // 容忍小幅修正，拒绝断崖式缺失
+  const got = await Promise.all(urls.map(async ([u, tag]) => {
     try{
       const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
-      if(!r.ok) continue;
+      if(!r.ok) return null;
       const d = await r.json();
-      if(d && d.recent_matches){ FRESH = d; return tag; }
-    }catch(e){}
-  }
+      return { d, tag, sc: dataScore(d) };
+    }catch(e){ return null; }
+  }));
+  let best = null;
+  got.forEach(x => {
+    if(!x || x.sc <= 0 || x.sc < floor) return;
+    if(!best || x.sc > best.sc) best = x;
+  });
+  if(best){ FRESH = best.d; return best.tag; }
   return null;
 }
 async function sync(labelEl){
   const tag = await pullNewest();
   if(labelEl) labelEl.textContent = tag
     ? `● 已同步最新数据（${tag}）`
-    : '○ 离线缓存（未能联网）';
-  if(tag) { const cur = location.hash; }
+    : '○ 使用内置数据（远端暂无更新）';
   return tag;
 }
 function startCountdown(target, onChange){
@@ -1212,6 +1311,159 @@ function nikoCard(){
   </div>`;
 }
 
+/* ===== 战绩统计（纯前端从 recent_matches 现算；数据缺失时安全降级） =====
+   注：LIST 按时间倒序（最新在前）。所有函数对空数组返回空结果，绝不抛异常。 */
+function bjDate(iso, mode){
+  const t = Date.parse(iso);
+  if(isNaN(t)) return '';
+  const s = new Date(t + 8 * 3600 * 1000).toISOString();
+  return mode === 'mon' ? s.slice(0, 7) : s.slice(0, 10);
+}
+function streakOf(list){
+  let best = 0, bestL = 0, runW = 0, runL = 0, cur = 0, curType = '';
+  list.slice().reverse().forEach(m => {          // 由旧到新
+    if(m.result === 'W'){ runW++; runL = 0; if(runW > best) best = runW; cur = runW; curType = 'W'; }
+    else { runL++; runW = 0; if(runL > bestL) bestL = runL; cur = runL; curType = 'L'; }
+  });
+  return { best, bestL, cur, curType };
+}
+function mapPoolOf(list){
+  const agg = {};
+  list.forEach(m => (m.maps || []).forEach(x => {
+    if(x.vetoed || !x.map) return;
+    const a = agg[x.map] = agg[x.map] || { map: x.map, n: 0, w: 0 };
+    a.n++; if(x.falcons_win) a.w++;
+  }));
+  return Object.values(agg)
+    .map(a => ({ map: a.map, n: a.n, w: a.w, l: a.n - a.w, rate: a.n ? a.w / a.n * 100 : 0 }))
+    .sort((a, b) => b.n - a.n);
+}
+function monthTrendOf(list){
+  const agg = {};
+  list.forEach(m => {
+    const k = bjDate(m.date, 'mon');
+    if(!k) return;
+    const a = agg[k] = agg[k] || { key: k, w: 0, l: 0 };
+    if(m.result === 'W') a.w++; else a.l++;
+  });
+  return Object.keys(agg).sort().map(k => ({ key: k, w: agg[k].w, l: agg[k].l, n: agg[k].w + agg[k].l }));
+}
+function eventBoardOf(list){
+  const agg = {};
+  list.forEach(m => {
+    const k = m.event || '未标注赛事';
+    const a = agg[k] = agg[k] || { name: k, n: 0, w: 0 };
+    a.n++; if(m.result === 'W') a.w++;
+  });
+  return Object.values(agg)
+    .map(a => ({ name: a.name, n: a.n, w: a.w, l: a.n - a.w, rate: a.n ? a.w / a.n * 100 : 0 }))
+    .sort((a, b) => (b.rate - a.rate) || (b.n - a.n));
+}
+function roundStatsOf(list){
+  let rounds = 0, maps = 0, ot = 0;
+  list.forEach(m => (m.maps || []).forEach(x => {
+    if(x.vetoed) return;
+    const f = parseInt((x.falcons || {}).rounds, 10);
+    const o = parseInt((x.opponent || {}).rounds, 10);
+    if(isNaN(f) || isNaN(o)) return;
+    maps++; rounds += f + o; if(f + o > 24) ot++;
+  }));
+  return { rounds, maps, ot };
+}
+function num(v, d){ return (v === undefined || v === null || v === '' || isNaN(v)) ? (d || '—') : v; }
+
+/* 近一年战绩 · 仪表盘 */
+function yearBoardHtml(LIST, YS){
+  if(!LIST.length) return '<div class="empty">数据同步中，稍后自动刷新…</div>';
+  const st = streakOf(LIST), mon = monthTrendOf(LIST), rnd = roundStatsOf(LIST);
+  const bos = {};
+  LIST.forEach(m => { const b = m.bo || '未知赛制'; bos[b] = (bos[b] || 0) + 1; });
+  const boTxt = Object.entries(bos).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `<b>${esc(k)}</b> ${v}`).join(' · ');
+  const total = num(YS.matches, LIST.length), rate = num(YS.win_rate, 0);
+  const recent = LIST.slice(0, 12).reverse();          // 左旧右新
+  const maxN = Math.max.apply(null, mon.map(m => m.n).concat([1]));
+  const evC = num(YS.events, 0);
+  return `
+    <div class="yb">
+      <div class="yb-nums">
+        <div class="yb-n w"><b>${num(YS.wins, 0)}</b><span>胜</span></div>
+        <div class="yb-n l"><b>${num(YS.losses, 0)}</b><span>负</span></div>
+        <div class="yb-rate"><b>${rate}%</b><span>胜率</span></div>
+      </div>
+      <div class="yb-bar"><i style="width:${rate}%"></i><u style="left:calc(${rate}% - 1px)"></u></div>
+      <div class="yb-legend"><span>${esc(YS.from) || '—'}</span><span>${total} 场系列赛</span><span>${esc(YS.to) || '—'}</span></div>
+      <div class="yb-sub">
+        <div class="yb-tag">赛制 ${boTxt}</div>
+        <div class="yb-tag">参赛站数 <b>${evC}</b></div>
+        <div class="yb-tag">出战地图 <b>${rnd.maps}</b></div>
+      </div>
+      <div class="yb-blk">
+        <div class="yb-h"><b>近期形态</b><em>最近 ${recent.length} 场 · 由旧到新</em></div>
+        <div class="yb-form">${recent.map(m =>
+          `<div class="ff ${m.result === 'W' ? 'W' : 'L'}" title="${esc(m.date ? bjDate(m.date) : '')} ${esc(m.opponent || '')} ${esc(m.score || '')}">${m.result}</div>`).join('')}</div>
+      </div>
+      <div class="yk">
+        <div class="yk-i"><b class="w">${st.best}</b><span>最长连胜</span></div>
+        <div class="yk-i"><b class="l">${st.bestL}</b><span>最长连败</span></div>
+        <div class="yk-i"><b class="${st.curType === 'W' ? 'w' : 'l'}">${st.cur}</b>
+          <span>当前${st.curType === 'W' ? '连胜' : '连败'}</span></div>
+      </div>
+      <div class="yb-blk">
+        <div class="yb-h"><b>月度走势</b><em>${mon.length} 个比赛月 · 柱高 = 场次</em></div>
+        <div class="yb-mon">${mon.map(m => `
+          <div class="mo" title="${m.key}：${m.w} 胜 ${m.l} 负">
+            <i class="l" style="height:${m.l / maxN * 100}%"></i>
+            <i class="w" style="height:${m.w / maxN * 100}%"></i>
+          </div>`).join('')}</div>
+        <div class="yb-mon-x">${mon.map(m => `<span>${m.key.slice(5)}月</span>`).join('')}</div>
+      </div>
+    </div>`;
+}
+
+/* 赛季概览 · 数据卡 + 地图池 + 分站战绩 */
+function seasonBoardHtml(LIST, YS){
+  if(!LIST.length) return '<div class="empty">数据同步中，稍后自动刷新…</div>';
+  const rnd = roundStatsOf(LIST), pool = mapPoolOf(LIST), evb = eventBoardOf(LIST), st = streakOf(LIST);
+  const perEvent = YS.events ? YS.matches / YS.events : 0;
+  const perMap = rnd.maps ? rnd.rounds / rnd.maps : 0;
+  const cells = [
+    ['系列赛总数', num(YS.matches, 0), '近一年全部系列赛', false],
+    ['系列赛胜率', num(YS.win_rate, 0) + '%', num(YS.wins, 0) + ' 胜 / ' + num(YS.losses, 0) + ' 负', true],
+    ['参赛站数', num(YS.events, 0), '平均每站 ' + perEvent.toFixed(1) + ' 场', false],
+    ['出战地图', rnd.maps, '累计 ' + rnd.rounds + ' 回合', false],
+    ['单图平均回合', perMap.toFixed(1), '加时局 ' + rnd.ot + ' 张', false],
+    ['最佳连胜', st.best, '当前 ' + st.cur + (st.curType === 'W' ? ' 连胜' : ' 连败'), false]
+  ];
+  const cellHtml = cells.map(([k, v, sub, hl]) =>
+    `<div class="st${hl ? ' hl' : ''}"><span>${k}</span><b>${v}</b><div class="st-sub">${sub}</div></div>`).join('');
+
+  const poolHtml = pool.length ? `
+    <div class="yb-blk">
+      <div class="yb-h"><b>地图池胜率</b><em>${pool.length} 张地图 · 共 ${rnd.maps} 图</em></div>
+      <div class="pool">${pool.map(p => `
+        <div class="pool-row">
+          <div class="pool-n">${esc(p.map)}</div>
+          <div class="pool-b"><i style="width:${p.rate}%"></i></div>
+          <div class="pool-v"><b>${p.rate.toFixed(0)}%</b> · ${p.n} 场</div>
+        </div>`).join('')}</div>
+    </div>` : '';
+
+  const evHtml = evb.length ? `
+    <div class="yb-blk">
+      <div class="yb-h"><b>分站战绩</b><em>共 ${evb.length} 站 · 按胜率排序</em></div>
+      <div class="eboard">${evb.map(e => `
+        <div class="eb">
+          <div class="et">${esc(e.name)}</div>
+          <div class="er"><b>${e.rate.toFixed(0)}%</b><em>${e.w}胜${e.l}负 · ${e.n} 场</em></div>
+          <div class="ebar"><i class="${e.rate < 50 ? 'low' : ''}" style="width:${e.rate}%"></i></div>
+        </div>`).join('')}</div>
+      <div class="hint">← 左右滑动查看全部 ${evb.length} 站 →</div>
+    </div>` : '';
+
+  return `<div class="grid">${cellHtml}</div>${poolHtml}${evHtml}`;
+}
+
 function render(){
   const d = dataOf(), P = d.player, YS = d.year_stats, LIST = d.recent_matches, SQ = d.squad || [];
   const c = P.career || {}, g = P.gear || {}, x = P.crosshair || {};
@@ -1335,16 +1587,14 @@ function render(){
 
   <div class="sec">
     <div class="sec-h"><b>${esc(YS.span)}战绩</b><i></i><em>${YS.wins} 胜 ${YS.losses} 负</em></div>
+    ${yearBoardHtml(LIST, YS)}
+    <div class="hint" style="margin:15px 0 10px">逐场系列赛比分（点任意一场看逐图详情）</div>
     <div class="rows" id="recList">${shown.map(m => matchRow(m, maxR)).join('')}${btn}</div>
   </div>
 
   <div class="sec">
     <div class="sec-h"><b>赛季概览</b><i></i><em>${esc(YS.from)} 至 ${esc(YS.to)}</em></div>
-    <div class="grid">
-      <div class="st"><span>系列赛总数</span><b>${YS.matches}</b></div>
-      <div class="st hl"><span>系列赛胜率</span><b>${YS.win_rate}%</b></div>
-      <div class="st"><span>参赛站数</span><b>${YS.events}</b></div>
-    </div>
+    ${seasonBoardHtml(LIST, YS)}
   </div>
 
   <div class="sec">
