@@ -1,6 +1,8 @@
 name: HLTV rating probe
 on:
   workflow_dispatch:
+  push:
+    paths: [".github/workflows/hltv_probe.yml"]
 
 permissions:
   contents: read
