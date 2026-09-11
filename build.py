@@ -938,7 +938,7 @@ function avatar(src, name, cls){
   if(!src) return ph;
   // onerror 里的 HTML 必须把双引号转成实体，否则会提前闭合属性
   const fb = ph.replace(/"/g, '&quot;').replace(/\n/g, '');
-  return `<img class="av av-${cls}" src="${esc(src)}" alt="${esc(name)}"
+  return `<img class="av av-${cls}" src="${esc(src)}" alt="${esc(name)}" loading="lazy" decoding="async"
     onerror="this.outerHTML='${fb}'">`;
 }
 function dataOf(){ return FRESH || D; }
@@ -970,6 +970,13 @@ function mapBgAttr(map, extraStyle){
   return dm + ` style="${s}"`;
 }
 
+/* 带超时的 fetch：远端源（jsDelivr 等）卡住时 5 秒内放弃，不让页面干等 */
+function fetchTO(u, ms){
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms || 5000);
+  return fetch(u, {cache:'no-store', signal: c.signal}).finally(() => clearTimeout(t));
+}
+
 /* ===== 赛事中心数据（含实时刷新） ===== */
 let EV = __EVENT__;
 let EV_FRESH = null;
@@ -983,7 +990,7 @@ async function pullEvent(){
   urls.push(['./event.json', '同源']);
   for(const [u, tag] of urls){
     try{
-      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      const r = await fetchTO(u + '?t=' + Date.now(), 5000);
       if(!r.ok) continue;
       const d = await r.json();
       // 同样要求「真的有赛事」：空数组 [] 也是 truthy，不能只看真值
@@ -1006,7 +1013,7 @@ async function pullPhotos(){
   urls.push(['./photos.json', '同源']);
   for(const [u, tag] of urls){
     try{
-      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      const r = await fetchTO(u + '?t=' + Date.now(), 5000);
       if(!r.ok) continue;
       const d = await r.json();
       if(Array.isArray(d) && d.length){ PH_FRESH = d; return tag; }
@@ -1151,7 +1158,7 @@ async function pullNewest(){
   const floor = dataScore(D) * 0.75;        // 容忍小幅修正，拒绝断崖式缺失
   const got = await Promise.all(urls.map(async ([u, tag]) => {
     try{
-      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      const r = await fetchTO(u + '?t=' + Date.now(), 5000);
       if(!r.ok) return null;
       const d = await r.json();
       return { d, tag, sc: dataScore(d) };
@@ -1165,11 +1172,21 @@ async function pullNewest(){
   if(best){ FRESH = best.d; return best.tag; }
   return null;
 }
+let __syncSig = '';
 async function sync(labelEl){
   const tag = await pullNewest();
   if(labelEl) labelEl.textContent = tag
     ? `● 已同步最新数据（${tag}）`
     : '○ 使用内置数据（远端暂无更新）';
+  // 后台拿到更新数据后静默重渲染（数据有实际变化才重画，避免闪烁）
+  if(tag && FRESH){
+    const sig = ((FRESH.meta || {}).updated || '') + ':' + ((FRESH.recent_matches || []).length);
+    if(sig !== __syncSig){
+      __syncSig = sig;
+      render();
+      if(typeof fx === 'function') fx();
+    }
+  }
   return tag;
 }
 function startCountdown(target, onChange){
@@ -1765,10 +1782,14 @@ function fx(){
 }
 
 async function boot(){
-  await Promise.all([pullPhotos(), pullNewest()]);
+  /* 秒开：先用页面内置数据渲染，再后台同步远端（照片/数据到了才重画） */
   render();
   fx();
-  sync(document.getElementById('liveStatus'));
+  const st = document.getElementById('liveStatus');
+  sync(st);
+  pullPhotos().then(tag => {
+    if(tag){ render(); fx(); if(st) st.textContent = '● 照片已更新（' + tag + '）'; }
+  });
 }
 """
 
@@ -1880,7 +1901,7 @@ function render(){
   lazyMapBg();
 }
 
-async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
+async function boot(){ render(); sync(document.getElementById('liveStatus')); }
 """
 
 TEAM_JS = CORE_JS + r"""
@@ -1928,7 +1949,7 @@ function render(){
   <div class="foot">阵容与选手资料抓取自 Liquipedia（CC BY-SA 3.0）。最近更新：__UPDATED__</div>`;
 }
 
-async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
+async function boot(){ render(); sync(document.getElementById('liveStatus')); }
 """
 
 PLAYER_JS = CORE_JS + r"""
@@ -2297,8 +2318,7 @@ function render(){
 }
 
 async function boot(){
-  await pullNewest();
-  render();
+  render();                     // 先渲染内置数据，不阻塞
   const st = document.getElementById('liveStatus');
   if(st) st.textContent = '● 赛事数据已载入 · 每 60 秒自动同步';
   setInterval(async () => {
@@ -2344,6 +2364,8 @@ def build_page(fname, pid, title, js, desc):
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://raw.githubusercontent.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -2411,6 +2433,8 @@ def main():
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://raw.githubusercontent.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">

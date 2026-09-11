@@ -2,7 +2,7 @@
 
 来源：Liquipedia 选手页画廊（liquipedia.net/counterstrike/Nikola_Kovac）。
 产出：
-  assets/photos/<slug>.jpg   每张官方照片（统一压到最长边 <=1100px，JPEG q82）
+  assets/photos/<slug>.jpg   每张官方照片（统一压到最长边 <=880px，JPEG q76 渐进式）
   photos.json                [{src, caption, event, year, recent}] 按年份倒序
 重跑本脚本即可拉取 Liquipedia 新发布的官方照片（"有更新的"）。
 """
@@ -27,8 +27,8 @@ UA = {
 }
 PAGE = "Niko"
 API = "https://liquipedia.net/counterstrike/api.php"
-MAX_EDGE = 1100
-QUALITY = 82
+MAX_EDGE = 880
+QUALITY = 76
 
 # 缩写 -> 可读名，用于把文件名整理成说明文字
 ABBREV = [
