@@ -1234,7 +1234,7 @@ function matchRow(m, maxR){
     <div class="rt">${avg !== null
       ? `<b>${avg.toFixed(2)}</b><small>评分</small>
          <div class="bar"><i style="width:${Math.min(100, avg/maxR*100)}%"></i></div>`
-      : `<small style="padding-top:6px">—</small>`}</div>
+      : `<small style="padding-top:6px" title="评分数据源（HLTV）暂时受限，该场数据待自动回补">—</small>`}</div>
     <div class="chev">›</div>
   </a>`;
 }
@@ -1561,6 +1561,10 @@ function render(){
     : '<div class="hero">';
   const heroClose = FE ? '</a>' : '</div>';
 
+  const rc = LIST.filter(m => ((m.niko || {}).ratings || []).length).length;
+  const rateNote = rc < LIST.length
+    ? '<div class="hint" style="margin-top:8px">评分来源 HLTV 2.1 · 已收录 ' + rc + '/' + LIST.length + ' 场 · 缺失场次由数据管线自动回补</div>'
+    : '';
   document.getElementById('app').innerHTML = `
   ${heroOpen}
     <div class="hero-top"><span class="tag">${heroTag}</span></div>
@@ -1597,6 +1601,7 @@ function render(){
     ${yearBoardHtml(LIST, YS)}
     <div class="hint" style="margin:15px 0 10px">逐场系列赛比分（点任意一场看逐图详情）</div>
     <div class="rows" id="recList">${shown.map(m => matchRow(m, maxR)).join('')}${btn}</div>
+    ${rateNote}
   </div>
 
   <div class="sec">
@@ -1862,7 +1867,7 @@ function render(){
     </div>
     ${(m.niko||{}).note ? `<div class="kv" style="margin-top:10px">
       <div class="kv-row"><span>备注</span><b>${esc(m.niko.note)}</b></div></div>` : ''}
-    ${!avg && !(m.niko||{}).kd ? '<div class="empty">本场尚未核对个人数据</div>' : ''}
+    ${!avg && !(m.niko||{}).kd ? '<div class="empty">本场评分待回补（HLTV 数据源暂时受限，数据管线会在可访问时自动补齐）</div>' : ''}
   </div>
 
   ${linkHtml ? `<div class="sec"><div class="sec-h"><b>相关链接</b><i></i><em>跳转外部站点</em></div>${linkHtml}</div>` : ''}

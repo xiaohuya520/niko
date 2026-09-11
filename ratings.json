@@ -1,0 +1,11 @@
+{
+  "_comment": "NiKo 逐场 rating 持久库。entries 按「日期 + 对手名前缀匹配」合并进 data.json。ratings 数组按非 Veto 地图顺序对应每图 Rating 2.1。来源：HLTV Rating 2.1；缺失场次由 fetch_ratings.py 自动回补。",
+  "updated": "2026-09-11T23:50:00+08:00",
+  "entries": [
+    { "date": "2026-09-05", "opponent": "Spirit", "ratings": [0.72, 0.89] },
+    { "date": "2026-09-04", "opponent": "G2 Esports", "ratings": [1.54] },
+    { "date": "2026-08-31", "opponent": "MOUZ", "ratings": [0.38] },
+    { "date": "2026-08-21", "opponent": "Legacy", "ratings": [0.76] },
+    { "date": "2026-08-13", "opponent": "Astralis", "ratings": [1.52] }
+  ]
+}

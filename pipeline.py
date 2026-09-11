@@ -98,11 +98,53 @@ def build_matches(pages):
     return uniq
 
 
+def _opp_key(s):
+    """对手名归一化：去空格标点小写，让「G2」能匹配「G2 Esports」。"""
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _load_ratings_store(base):
+    """合并 base.json 的 known_ratings（旧）与 ratings.json（新持久库）。"""
+    store = {}
+    here = pathlib.Path(__file__).parent
+
+    def ingest(entries, prefer=False):
+        for d in entries or []:
+            date = (d.get("date") or "")[:10]
+            key = _opp_key(d.get("opponent") or "")
+            if not date or not key:
+                continue
+            cur = store.get((date, key))
+            if cur is None or prefer:
+                store[(date, key)] = dict(d)
+
+    ingest(base.get("known_ratings"))
+    rf = here / "ratings.json"
+    if rf.exists():
+        try:
+            ingest(json.loads(rf.read_text(encoding="utf-8")).get("entries"), prefer=True)
+        except Exception:
+            pass
+    return store
+
+
+def _match_ratings(store, date10, opponent):
+    """按「日期 + 对手名归一化」精确或前缀匹配评分记录。"""
+    k = _opp_key(opponent)
+    hit = store.get((date10, k))
+    if hit is not None:
+        return hit
+    for (d, ok), v in store.items():
+        if d == date10 and ok and (ok.startswith(k) or k.startswith(ok)):
+            return v
+    return None
+
+
 def assemble(base, matches, squad):
     """把静态基座、比赛列表、阵容合并成最终 data.json 结构。"""
-    known = {(d["date"], d["opponent"]): dict(d) for d in base.get("known_ratings", [])}
+    store = _load_ratings_store(base)
     for m in matches:
-        src = known.get((m["date"][:10], m["opponent"]))
+        src = _match_ratings(store, m["date"][:10], m["opponent"])
         niko = {"ratings": (src or {}).get("ratings", [])}
         for key in ("kd", "adr", "note"):
             if src and src.get(key):
