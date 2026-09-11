@@ -49,6 +49,10 @@ run_firmware_checks() (
         -D "SDKCONFIG=${validation_build_dir}/sdkconfig" build
     idf.py -B "${validation_build_dir}" merge-bin \
         -o "${validation_build_dir}/FoloToy-AI-Passport-full.bin"
+    # 队标与中文字体的位图不在 app 里(见 tools/pack_csres.py),要把它们注进
+    # csres 资源分区 —— 否则烧出来的镜像中文整字不画、队标全退化成占位徽章。
+    python3 tools/pack_csres.py --inject "${validation_build_dir}/FoloToy-AI-Passport-full.bin"
+    python3 tools/pack_csres.py --verify "${validation_build_dir}/FoloToy-AI-Passport-full.bin"
     python3 tools/verify_firmware.py "${validation_build_dir}"
     mkdir -p "${repo_root}/build"
     install -m 0644 \

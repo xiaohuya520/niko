@@ -7,3 +7,7 @@ cardid,   data, nvs,     0x356000, 0x4000,
 # 12KB 的赛程 JSON 缓存挤进去太紧张;这里划 64KB 出来专门放数据。
 # tools/verify_firmware.py 明确允许在受保护的 cardid 之后追加资源分区。
 csdata,   data, nvs,     0x35A000, 0x10000,
+# 静态资源外置:队标(105 支 x 48px/20px RGB565 ≈ 555KB)与中文字体位图(≈ 296KB)
+# 从 app 里搬到这里,由 tools/pack_csres.py 生成 prebuilt/csres.bin 并在合并镜像时注入。
+# 主固件因此从 ~2.79MB 瘦到 ~1.9MB(app 分区 3MB 的余量重新变宽裕)。
+csres,    data, spiffs,  0x36A000, 0x100000,

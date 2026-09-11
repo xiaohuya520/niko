@@ -100,6 +100,7 @@ static int       s_scan_dots;
 // 密码输入(完整三键键盘)
 static char s_pass[34];
 static char s_target_ssid[33];
+static bool s_target_secure;   // 目标网络是否要密码(进密码页时记下)
 
 // 键盘模式:小写 / 大写 / 数字 / 符号
 typedef enum { KB_LOWER = 0, KB_UPPER, KB_NUM, KB_SYM } kb_mode_t;
@@ -119,8 +120,19 @@ static kb_mode_t s_kbmode;   // 当前模式
 static int       s_kb_row;   // 行:0..KB_ROWS[mode](末行为功能行)
 static int       s_kb_col;   // 列:字符行 0..列数-1;功能行 0..3
 
+// 键盘控件的指针缓存:导航/输入时只改配色和文本,不再整屏重建。
+// (每次 rebuild 会删几十个对象再重建,又费栈又费 LVGL 堆,还伴随一次全屏重绘
+//  —— 之前每按一个键都这么来一遍,是白屏闪烁和内存碎片的源头。)
+#define KB_MAX_COLS 10
+static lv_obj_t *s_keyw[3][KB_MAX_COLS];   // 字符键(上、中、下三行)
+static lv_obj_t *s_fnw[KB_FN_COLS];        // 功能键
+static lv_obj_t *s_pass_lbl;               // "已输入"后面的掩码
+static lv_obj_t *s_pass_len;               // 右侧 "N 位"
+static lv_obj_t *s_conn_msg;               // 底部连接状态/错误提示
+
 // 前向声明:密码键盘 helper(kb_activate)在 rebuild() 定义之前就调用它
 static void rebuild(void);
+static void kb_refresh_sel(void);
 
 // 主菜单条目
 static const struct { const char *label; uint32_t acc; } MENU[] = {
@@ -606,8 +618,11 @@ static void build_wifi(void)
     if (st == CS_NET_SCANNING)        { t = "正在扫描";      tc = C_YEL; }
     else if (st == CS_NET_CONNECTING) { t = "正在连接";      tc = C_YEL; }
     else if (st == CS_NET_ONLINE)     { t = "已连接";        tc = C_GRN; }
-    else if (st == CS_NET_FAILED)     { t = cs_net_scan_msg()[0] ? cs_net_scan_msg()
-                                                                  : "扫描失败,按确定重试";
+    else if (st == CS_NET_FAILED)     { // 连接失败的原因比"扫描失败"更值得看,
+                                        // 谁排在前面要看最近一次到底败在哪一步
+                                        t = cs_net_conn_err()[0] ? cs_net_conn_err()
+                                          : (cs_net_scan_msg()[0] ? cs_net_scan_msg()
+                                             : "扫描失败,按确定重试");
                                         tc = C_RED; }
     // 记下标题标签:tick() 里扫描中会改成 "正在扫描." / ".." / "..." 循环
     s_wifi_lbl = label_at(head, 10, 3, t, &font_cn16, tc);
@@ -725,6 +740,74 @@ static void kb_move_v(int dir)
     s_kb_row = r;
 }
 
+// 把每个键按"是否选中"重新上色(不重建对象)。全键遍历也就 ~34 个,比整屏
+// rebuild 便宜一个数量级。
+static void kb_refresh_sel(void)
+{
+    for (int r = 0; r < KB_ROWS[s_kbmode]; r++) {
+        int cols = kb_row_cols(r);
+        for (int c = 0; c < cols && c < KB_MAX_COLS; c++) {
+            lv_obj_t *kc = s_keyw[r][c];
+            if (!kc) continue;
+            bool sel = (r == s_kb_row && c == s_kb_col);
+            lv_obj_set_style_bg_color(kc, lv_color_hex(sel ? C_BLUE : C_CARD), 0);
+            lv_obj_t *kl = lv_obj_get_child(kc, 0);
+            if (kl) lv_obj_set_style_text_color(kl, lv_color_hex(sel ? C_TEXT : C_DIM), 0);
+        }
+    }
+    for (int c = 0; c < KB_FN_COLS; c++) {
+        lv_obj_t *kc = s_fnw[c];
+        if (!kc) continue;
+        bool sel = (s_kb_row >= KB_ROWS[s_kbmode]) && (c == s_kb_col);
+        uint32_t bg = (c == FN_CONN) ? (sel ? C_GRN : C_CARD)
+                    : (c == FN_DEL)  ? (sel ? C_RED : C_CARD)
+                    :                  (sel ? C_BLUE : C_CARD);
+        lv_obj_set_style_bg_color(kc, lv_color_hex(bg), 0);
+        lv_obj_t *kl = lv_obj_get_child(kc, 0);
+        if (kl) lv_obj_set_style_text_color(kl, lv_color_hex(sel ? C_TEXT : C_DIM), 0);
+    }
+}
+
+// 已输入掩码 + 位数(输入/删除/空格后只刷新这两处文本)
+static void pass_text_refresh(void)
+{
+    if (!s_pass_lbl || !s_pass_len) return;
+    int pl = (int)strlen(s_pass);
+    char mask[40];
+    if (pl == 0) {
+        scpy(mask, sizeof(mask), "尚未输入");
+    } else {
+        int k = 0;
+        for (int i = 0; i < pl && k + 1 < (int)sizeof(mask); i++) mask[k++] = '*';
+        mask[k] = 0;
+    }
+    lv_label_set_text(s_pass_lbl, mask);
+    lv_obj_set_style_text_color(s_pass_lbl,
+        lv_color_hex(pl ? C_TEXT : C_DIM2), 0);
+    char ln[12];
+    snprintf(ln, sizeof(ln), "%d 位", pl % 1000);
+    lv_label_set_text(s_pass_len, ln);
+}
+
+// 底部连接状态/错误提示
+static void conn_msg_refresh(void)
+{
+    if (!s_conn_msg) return;
+    const char *txt = "";
+    uint32_t col = C_DIM2;
+    switch (cs_net_state()) {
+    case CS_NET_CONNECTING:
+        txt = "正在连接...";  col = C_YEL;  break;
+    case CS_NET_FAILED:
+        txt = cs_net_conn_err()[0] ? cs_net_conn_err() : "连接失败,请核对密码";
+        col = C_RED;  break;
+    default:
+        break;
+    }
+    lv_label_set_text(s_conn_msg, txt);
+    lv_obj_set_style_text_color(s_conn_msg, lv_color_hex(col), 0);
+}
+
 // 确定短按:激活当前键(输入字符 / 模式切换 / 空格 / 删除 / 连接)
 static void kb_activate(void)
 {
@@ -733,29 +816,40 @@ static void kb_activate(void)
         char ch = row[s_kb_col];
         size_t pl = strlen(s_pass);
         if (pl < sizeof(s_pass) - 1) { s_pass[pl] = ch; s_pass[pl + 1] = 0; }
-        rebuild();
+        pass_text_refresh();
+        conn_msg_refresh();          // 输入新字符后把上一次的失败提示顶掉
     } else {
         switch (s_kb_col) {
         case FN_SHIFT:
             s_kbmode = (kb_mode_t)((s_kbmode + 1) % 4);
             s_kb_row = 0; s_kb_col = 0;
-            rebuild();
+            rebuild();               // 只有模式切换要动布局,才值得整屏重建
             break;
         case FN_SPACE: {
             size_t pl = strlen(s_pass);
             if (pl < sizeof(s_pass) - 1) { s_pass[pl] = ' '; s_pass[pl + 1] = 0; }
-            rebuild();
+            pass_text_refresh();
+            conn_msg_refresh();
             break;
         }
         case FN_DEL: {
             size_t pl = strlen(s_pass);
             if (pl > 0) s_pass[pl - 1] = 0;
-            rebuild();
+            pass_text_refresh();
+            conn_msg_refresh();
             break;
         }
         case FN_CONN:
-            cs_net_connect(s_target_ssid, s_pass);
-            rebuild();
+            if (s_target_secure && !s_pass[0]) {
+                // 有密码的网络空着连,必然失败,直接提示,别浪费一轮重连
+                if (s_conn_msg) {
+                    lv_label_set_text(s_conn_msg, "请先输入密码");
+                    lv_obj_set_style_text_color(s_conn_msg, lv_color_hex(C_YEL), 0);
+                }
+                break;
+            }
+            cs_net_connect(s_target_ssid, s_pass);   // 失败后再按就是重试
+            conn_msg_refresh();
             break;
         }
     }
@@ -763,6 +857,12 @@ static void kb_activate(void)
 
 static void build_pass(void)
 {
+    s_pass_lbl = NULL;
+    s_pass_len = NULL;
+    s_conn_msg = NULL;
+    memset(s_keyw, 0, sizeof(s_keyw));
+    memset(s_fnw, 0, sizeof(s_fnw));
+
     // 标题
     lv_obj_t *head = box(s_body, 8, 4, 224, 24, C_CARD, 6);
     label_at(head, 10, 2, "输入无线密码", &font_cn16, C_YEL);
@@ -774,20 +874,10 @@ static void build_pass(void)
     trunc_u8(ss, sizeof(ss), s_target_ssid, 12);
     label_at(card, 10, 22, ss, &font_cn16, C_TEXT);
     label_at(card, 10, 42, "已输入", &font_cn16, C_DIM2);
-    char mask[40];
-    int pl = (int)strlen(s_pass);
-    if (pl == 0) {
-        scpy(mask, sizeof(mask), "尚未输入");
-    } else {
-        int k = 0;
-        for (int i = 0; i < pl && k + 1 < (int)sizeof(mask); i++) mask[k++] = '*';
-        mask[k] = 0;
-    }
-    label_at(card, 56, 42, mask, &font_cn16, pl ? C_TEXT : C_DIM2);
-    char ln[12];
-    snprintf(ln, sizeof(ln), "%d 位", pl % 1000);
-    lv_obj_t *ll = label(card, ln, &font_cn16, C_DIM2);
-    lv_obj_align(ll, LV_ALIGN_RIGHT_MID, -8, 0);
+    s_pass_lbl = label_at(card, 56, 42, "", &font_cn16, C_DIM2);
+    s_pass_len = label(card, "", &font_cn16, C_DIM2);
+    lv_obj_align(s_pass_len, LV_ALIGN_RIGHT_MID, -8, 0);
+    pass_text_refresh();
 
     // 操作提示
     label_at(s_body, 8, 96, "长按上/下 可上下换行", &font_cn16, C_DIM2);
@@ -803,11 +893,12 @@ static void build_pass(void)
         if (r < KB_ROWS[s_kbmode]) {
             int row_w = cols * cell_w;
             int x0 = kx + (224 - row_w) / 2;
-            for (int c = 0; c < cols; c++) {
+            for (int c = 0; c < cols && c < KB_MAX_COLS; c++) {
                 int x = x0 + c * cell_w;
                 bool sel = (r == s_kb_row && c == s_kb_col);
                 lv_obj_t *kc = box(s_body, x, y, cell_w - 1, cell_h - 2,
                                    sel ? C_BLUE : C_CARD, 4);
+                s_keyw[r][c] = kc;
                 char buf[2] = { KB_CHARS[s_kbmode][r][c], 0 };
                 lv_obj_t *kl = label(kc, buf, &lv_font_montserrat_20, sel ? C_TEXT : C_DIM);
                 lv_obj_center(kl);
@@ -822,6 +913,7 @@ static void build_pass(void)
                 if (c == FN_CONN) fcol = sel ? C_GRN : C_CARD;
                 if (c == FN_DEL)  fcol = sel ? C_RED : C_CARD;
                 lv_obj_t *kc = box(s_body, x, y, fw, cell_h - 2, fcol, 6);
+                s_fnw[c] = kc;
                 const char *txt = (c == FN_SHIFT) ? MODE_NAME[s_kbmode] : FN_LABEL[c];
                 uint32_t tcol = sel ? C_TEXT : C_DIM;
                 lv_obj_t *kl = label(kc, txt, &font_cn16, tcol);
@@ -830,13 +922,10 @@ static void build_pass(void)
         }
     }
 
-    // 连接结果
-    cs_net_state_t st = cs_net_state();
-    if (st == CS_NET_CONNECTING) {
-        label_at(s_body, 70, 244, "正在连接...", &font_cn16, C_YEL);
-    } else if (st == CS_NET_FAILED) {
-        label_at(s_body, 52, 244, "连接失败,请核对密码", &font_cn16, C_RED);
-    }
+    // 连接状态/错误(专用标签:后续由 conn_msg_refresh() 就地更新,不重建)
+    s_conn_msg = label_w(s_body, 0, 244, 224, "", &font_cn16, C_DIM2,
+                         LV_TEXT_ALIGN_CENTER);
+    conn_msg_refresh();
 }
 
 // ---------------------------------------------------------------------------
@@ -849,6 +938,9 @@ static void rebuild(void)
         s_body = NULL;
     }
     s_wifi_lbl = NULL;                 // 跟着 s_body 一起被删掉了
+    s_pass_lbl = s_pass_len = s_conn_msg = NULL;
+    memset(s_keyw, 0, sizeof(s_keyw));
+    memset(s_fnw, 0, sizeof(s_fnw));
     s_body = box(s_scr, 0, BODY_Y, SCREEN_W, BODY_H, C_BG, 0);
 
     switch (s_view) {
@@ -909,11 +1001,13 @@ static void do_ok_single(void)
             // 有密码:先记住目标网络,再进密码页
             scpy(s_target_ssid, sizeof(s_target_ssid), ssid);
             s_pass[0] = 0;
+            s_target_secure = true;
             s_kbmode = KB_LOWER;
             s_kb_row = 0;
             s_kb_col = 0;
             set_view(VIEW_PASS);
         } else {
+            s_target_secure = false;
             cs_net_connect(ssid, "");
             rebuild();
         }
@@ -1021,6 +1115,7 @@ void demo_csboard_enter(void)
     s_ap_sel = 0;
     s_pass[0] = 0;
     s_target_ssid[0] = 0;
+    s_target_secure = false;
     s_kbmode = KB_LOWER;
     s_kb_row = 0;
     s_kb_col = 0;
@@ -1080,12 +1175,12 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
         if (ev == BSP_BTN_CLICK && btn == BSP_BTN_OK) { kb_activate(); return; }
         if (ev == BSP_BTN_CLICK && (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN)) {
             kb_move_h(btn == BSP_BTN_UP ? 1 : -1);
-            rebuild();
+            kb_refresh_sel();        // 只换选中配色,不重建整屏
             return;
         }
         if (ev == BSP_BTN_LONG && (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN)) {
             kb_move_v(btn == BSP_BTN_UP ? -1 : 1);
-            rebuild();
+            kb_refresh_sel();
             return;
         }
         return;   // PRESS / DOUBLE 等忽略

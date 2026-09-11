@@ -157,12 +157,16 @@ npm install lv_font_conv
 # 1) 按 tools/cs_teams.json 清单下载 105 支真实队标 PNG
 python tools/fetch_cs_logos.py --out .cache/logos
 
-# 2) 生成字体 + 队标(会覆盖 main/cs_font_cn16.c 与 main/cs_assets.c)
+# 2) 生成字体 + 队标(会覆盖 main/cs_font_cn16.c 与 main/cs_assets.c,产出"胖"版)
 python tools/gen_csboard_assets.py \
     --ttf        NotoSansSC-Regular.ttf \
     --logo-dir   .cache/logos \
     --teams-json tools/cs_teams.json \
     --out-dir    main
+
+# 3) 把位图搬进 csres 资源分区(必做!生成"瘦"版源文件 + prebuilt/csres.bin)
+#    不跑这一步的话,app 会塞回 ~850KB 位图,逼近 3MB 上限
+python tools/pack_csres.py
 ```
 
 * `--logo-dir` 里每个 PNG 的文件名就是 `logo` id(`g2.png` → `"logo": "g2"`)

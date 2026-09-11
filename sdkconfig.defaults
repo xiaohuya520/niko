@@ -28,8 +28,9 @@ CONFIG_LV_FONT_MONTSERRAT_20=y
 CONFIG_LV_FONT_MONTSERRAT_24=y
 CONFIG_LV_FONT_MONTSERRAT_28=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# CS 看板对象较多(比分卡 + 地图行 + Wi-Fi 列表),32KB 留出余量。
-CONFIG_LV_MEM_SIZE_KILOBYTES=32
+# CS 看板对象较多(比分卡 + 地图行 + Wi-Fi 列表 + 键盘 40 键),40KB 留足余量,
+# 也减少频繁重建对象时的碎片风险(内存吃紧时 LVGL 返回 NULL 会直接把界面画崩)。
+CONFIG_LV_MEM_SIZE_KILOBYTES=40
 
 # 中文字体(cs_font_cn16)位图约 380KB,glyph 位图偏移会超过 64KB,
 # 开启 32 位位图索引,避免定点截断导致字形错乱。

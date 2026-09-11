@@ -78,6 +78,9 @@ static bool             s_scan_keep_online; // 扫描前已联网:扫完要恢�
 static int              s_scan_watch;     // 看门狗计数(UI 每 200ms +1)
 static char             s_scan_msg[48];   // 最近一次扫描的错误说明
 
+static char             s_conn_err[48];   // 最近一次连接失败的原因(中文,可上屏)
+static int              s_conn_watch;     // CONNECTING 状态的看门狗计数(防"永远连接中")
+
 static cs_data_t        s_data;
 static bool             s_from_net;
 
@@ -166,18 +169,40 @@ static void start_sntp(void)
     }
 }
 
+// 把 STA 断开原因码翻译成一句用户能看懂的话(直接上屏,拍照就能定位问题)。
+// 常见码: 2=AUTH_EXPIRE 15=4WAY_HANDSHAKE_TIMEOUT 200=BEACON_TIMEOUT
+//         201=NO_AP_FOUND 202=AUTH_FAIL 203/204/205=关联/握手/建链失败
+static void conn_err_set(int reason)
+{
+    switch (reason) {
+    case 15:  scpy(s_conn_err, sizeof(s_conn_err), "密码可能不对");      break;
+    case 2:   scpy(s_conn_err, sizeof(s_conn_err), "认证超时,信号弱");   break;
+    case 201: scpy(s_conn_err, sizeof(s_conn_err), "找不到这个网络");    break;
+    case 202: scpy(s_conn_err, sizeof(s_conn_err), "认证失败");          break;
+    case 203:
+    case 204:
+    case 205: scpy(s_conn_err, sizeof(s_conn_err), "连接被路由器拒绝");  break;
+    case 200: scpy(s_conn_err, sizeof(s_conn_err), "信号不稳,靠近些");   break;
+    default:
+        snprintf(s_conn_err, sizeof(s_conn_err), "连接失败(代码%d)", reason % 1000);
+        break;
+    }
+}
+
 static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     (void)arg; (void)base;
     switch (id) {
     case WIFI_EVENT_STA_DISCONNECTED: {
         const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
-        ESP_LOGW(TAG, "Wi-Fi 断开, reason=%d", d ? (int)d->reason : -1);
+        int reason = d ? (int)d->reason : -1;
+        ESP_LOGW(TAG, "Wi-Fi 断开, reason=%d", reason);
         s_ip[0] = 0;
         // 配网/扫描期间不自动重连:否则 esp_wifi_connect() 会把正在跑的扫描打断,
         // 表现就是"一直停在扫描页"。扫描任务自己会在扫完后让用户重新连接。
         if (s_scan_busy) break;
         if (s_state == CS_NET_CONNECTING || s_state == CS_NET_ONLINE) {
+            conn_err_set(reason);
             if (s_reconnect < 3) {
                 s_reconnect++;
                 esp_wifi_connect();
@@ -295,10 +320,11 @@ void cs_net_shutdown(void)
 }
 
 cs_net_state_t cs_net_state(void)        { return s_state; }
-void           cs_net_state_reset(void)  { if (s_state == CS_NET_FAILED) s_state = CS_NET_READY; s_scan_msg[0] = 0; }
+void           cs_net_state_reset(void)  { if (s_state == CS_NET_FAILED) s_state = CS_NET_READY; s_scan_msg[0] = 0; s_conn_err[0] = 0; s_conn_watch = 0; }
 bool           cs_net_online(void)       { return s_state == CS_NET_ONLINE; }
 const char    *cs_net_ip(void)           { return s_ip; }
 const char    *cs_net_ssid(void)         { return s_ssid; }
+const char    *cs_net_conn_err(void)     { return s_conn_err; }
 const char    *cs_net_ap_prev_ssid(void) { return s_prev_ssid; }
 
 // 扫描任务:在独立任务里用阻塞式 esp_wifi_scan_start()。
@@ -388,6 +414,18 @@ const char *cs_net_scan_msg(void)  { return s_scan_msg; }
 
 void cs_net_scan_watchdog(void)
 {
+    // 连接兜底:正常连接十几秒内必有结果(GOT_IP 或 DISCONNECTED 事件),
+    // 卡在 CONNECTING 超过 20 秒说明底层没动静,强制判失败,界面给出出口。
+    if (s_state == CS_NET_CONNECTING) {
+        if (++s_conn_watch < 100) return;        // 200ms × 100 = 20s
+        s_conn_watch = 0;
+        s_state = CS_NET_FAILED;
+        if (!s_conn_err[0]) scpy(s_conn_err, sizeof(s_conn_err), "连接超时,请重试");
+        ESP_LOGW(TAG, "连接超时,强制判失败");
+        return;
+    }
+    s_conn_watch = 0;
+
     if (s_state != CS_NET_SCANNING) { s_scan_watch = 0; return; }
     if (++s_scan_watch < 75) return;         // 200ms × 75 = 15s
     s_scan_watch = 0;
@@ -409,22 +447,34 @@ void cs_net_connect(const char *ssid, const char *password)
     if (!ssid || !ssid[0]) return;
     if (wifi_bring_up() != ESP_OK) { s_state = CS_NET_FAILED; return; }
 
+    s_conn_err[0] = 0;
+    s_conn_watch = 0;
+    s_reconnect = 0;
+
     wifi_config_t wc;
     memset(&wc, 0, sizeof(wc));
     scpy((char *)wc.sta.ssid, sizeof(wc.sta.ssid), ssid);
     if (password) scpy((char *)wc.sta.password, sizeof(wc.sta.password), password);
     wc.sta.threshold.authmode = (password && password[0]) ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    // 快扫 + 按信号排序:连接目标明确(用户刚从列表里选的),没必要全信道兜圈子;
+    // PMF 显式给出 capable=true:新一点的 Wi-Fi 6 路由器(尤其是 WPA3 混合模式)
+    // 没这一项会握手失败,表现就是"密码明明是对的却连不上"。
+    wc.sta.scan_method = WIFI_FAST_SCAN;
+    wc.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    wc.sta.pmf_cfg.capable = true;
+    wc.sta.pmf_cfg.required = false;
 
     esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &wc);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "set_config: %s", esp_err_to_name(err));
         s_state = CS_NET_FAILED;
-        scpy(s_fetch_msg, sizeof(s_fetch_msg), "Wi-Fi config failed");
+        scpy(s_conn_err, sizeof(s_conn_err), "网络配置失败");
         return;
     }
     scpy(s_ssid, sizeof(s_ssid), ssid);
     scpy(s_prev_ssid, sizeof(s_prev_ssid), ssid);
-    s_reconnect = 0;
+    // 先改状态再断开:这次 disconnect 事件会被当成"重连信号"按新配置发起连接,
+    // 紧跟的 esp_wifi_connect() 是双保险(如果已经不在关联状态,事件不会来)。
     s_state = CS_NET_CONNECTING;
     esp_wifi_disconnect();
     esp_wifi_connect();

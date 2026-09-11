@@ -103,8 +103,12 @@ const char    *cs_net_ssid(void);
 // 可以重复调用:正在扫时会被忽略。
 void cs_net_scan(void);
 
-// UI 侧每 200ms 调一次。扫描超过约 15s 仍未完成就强制收尾成 CS_NET_FAILED,
-// 保证界面不会永远停在"正在扫描"。
+// 最近一次连接失败的原因(中文短句,可直接上屏;空串=没有失败记录)。
+// 例如"密码可能不对" / "找不到这个网络" / "信号不稳" —— 用户拍照就能定位问题。
+const char *cs_net_conn_err(void);
+
+// UI 侧每 200ms 调一次。两个兜底:扫描超过约 15s 仍未完成、连接超过约 20s
+// 还没有结果,都强制收尾成 CS_NET_FAILED,界面永远不会卡死在"进行中"。
 void        cs_net_scan_watchdog(void);
 bool        cs_net_scan_busy(void);      // 扫描任务是否在跑
 const char *cs_net_scan_msg(void);       // 最近一次扫描的错误说明(空串=无)

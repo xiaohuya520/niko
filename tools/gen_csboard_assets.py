@@ -7,6 +7,10 @@
     main/cs_font_cn16.c   中文字体 16px,ASCII + GB2312 常用汉字(3755 一级汉字)
     main/cs_assets.c      战队队标,48px(比分卡) / 20px(列表缩略) 两档 RGB565
 
+⚠ 本脚本产出的是"胖"源文件(位图直接编在 C 里,共约 850KB),会把 app 分区吃满。
+   生成完**必须再跑一次 tools/pack_csres.py**:它把位图搬进 csres 资源分区
+   (prebuilt/csres.bin),并把这两个文件改写成"瘦"版。只跑本脚本会让 app 重新变胖。
+
 依赖:
     pip install pillow fonttools brotli
     npm install lv_font_conv        # LVGL 官方字体生成器
@@ -14,12 +18,14 @@
 用法:
     # 1) 先按清单把真实队标下到本地(见 tools/cs_teams.json)
     python tools/fetch_cs_logos.py --out .cache/logos
-    # 2) 生成资源
+    # 2) 生成"胖"资源
     python tools/gen_csboard_assets.py \
         --ttf  <NotoSansSC.ttf> \
         --logo-dir .cache/logos \
         --teams-json tools/cs_teams.json \
         --out-dir main
+    # 3) 把位图搬到 Flash 资源分区(必做,否则 app 会超 3MB 或被撑满)
+    python tools/pack_csres.py
 
 环境变量:
     NODE_BIN        node 可执行文件(默认取 WorkBuddy 托管 node)

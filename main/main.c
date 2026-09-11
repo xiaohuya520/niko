@@ -10,11 +10,15 @@
 #include "bsp_audio.h"
 #include "bsp_battery.h"
 #include "bsp_pins.h"      // 错误日志里要打印 BSP_LCD_* 引脚号
+#include "cs_assets.h"     // 队标 / 中文字体位图外置在 csres 分区,开机要先绑
 #include "demo.h"
 #include "ui_pixel.h"
 #include "lvgl.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
 static const char *TAG = "main";
 
@@ -87,11 +91,22 @@ void folotoy_back_to_menu(void) {
     }
 }
 
-// 按键回调运行在 button 组件的任务里,操作 LVGL 必须加锁。
-static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
-    (void)user;
-    if (!bsp_lvgl_lock(500)) return;
+// ---------------------------------------------------------------------------
+// 按键事件改走独立任务。
+// 按键回调原本直接在 button 组件的任务里做 LVGL 整屏重建 + esp_wifi 调用,
+// 那个任务的栈有多深不受我们控制(组件内置默认值),键盘页一次 rebuild 要建
+// 几十个 LVGL 对象,栈一旦吃紧就是莫名其妙的重启 —— 屏上表现正是"隔几秒白屏
+// 一次"(重启时 LCD 复位会白一下)。这里只把事件丢进队列,由自带 6KB 栈的
+// key_task 取出来、拿 LVGL 锁后再分发,深度不受组件约束。
+// ---------------------------------------------------------------------------
+typedef struct {
+    uint8_t btn;
+    uint8_t ev;
+} key_evt_t;
 
+static QueueHandle_t s_keyq;
+
+static void dispatch_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
     if (s_active >= 0) {
         if (btn == BSP_BTN_OK && ev == BSP_BTN_LONG) {
             if (s_active == DEMO_BOOT_IDX) {
@@ -118,7 +133,25 @@ static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
             ui_pixel_mascot_jump(s_mascot);
         }
     }
-    bsp_lvgl_unlock();
+}
+
+// 按键回调只做入队,队列满就丢弃(界面还没消化完的连点没有意义)。
+static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
+    (void)user;
+    if (!s_keyq) return;
+    key_evt_t e = { (uint8_t)btn, (uint8_t)ev };
+    xQueueSend(s_keyq, &e, 0);
+}
+
+static void key_task(void *arg) {
+    (void)arg;
+    key_evt_t e;
+    for (;;) {
+        if (xQueueReceive(s_keyq, &e, portMAX_DELAY) != pdTRUE) continue;
+        if (!bsp_lvgl_lock(1000)) continue;
+        dispatch_key((bsp_btn_t)e.btn, (bsp_btn_ev_t)e.ev);
+        bsp_lvgl_unlock();
+    }
 }
 
 void app_main(void) {
@@ -142,6 +175,13 @@ void app_main(void) {
     bsp_display_backlight(100);
 
     // 其余外设单项失败不阻塞:菜单里标 [FAIL],其他项照常可测。
+    // 按键事件队列与分发任务先建好,bsp_button_init 注册的回调才有的放。
+    s_keyq = xQueueCreate(10, sizeof(key_evt_t));
+    if (s_keyq && xTaskCreate(key_task, "ui_key", 6144, NULL, 5, NULL) != pdPASS) {
+        vQueueDelete(s_keyq);
+        s_keyq = NULL;
+    }
+
     s_ok[0] = true;                                   // Display 已确认可用
     s_ok[1] = (bsp_button_init(on_key, NULL) == ESP_OK);
     s_ok[2] = (bsp_audio_init() == ESP_OK);
@@ -150,6 +190,12 @@ void app_main(void) {
     s_ok[5] = true;
     s_ok[6] = true;
     s_ok[7] = true;                                   // CS Board 页面自包含,无外设依赖
+
+    // 队标与中文字体的位图不在 app 里(在 csres 资源分区),先映射并绑定,
+    // 否则中文会整字不画、队标会退化成占位徽章。失败只降级,不阻塞启动。
+    if (!cs_assets_load()) {
+        ESP_LOGW(TAG, "静态资源未加载:队标退化为占位徽章,中文不可用");
+    }
 
     // 开机直奔 CS 看板,不再停在官方 demo 菜单上等用户按 7 下选到它。
     // 原来的菜单没丢:在 CS 看板里长按 OK 就回到菜单,工厂自检项照样能进去测。
