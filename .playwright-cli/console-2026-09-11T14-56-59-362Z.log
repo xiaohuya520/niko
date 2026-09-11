@@ -1,0 +1,44 @@
+[     567ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[    1841ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[    2108ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[    2984ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://challenges.cloudflare.com') does not match the recipient window's origin ('https://www.hltv.org'). @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[   40787ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-4hsxn, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[   42395ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[   42747ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[   42819ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[   85216ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-xza46, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[   89280ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[   90005ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[   90255ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  132516ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-p6s4x, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  140744ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  141415ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  141583ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  182084ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-wpp7r, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  197304ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  198175ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  198445ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  240708ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-taff8, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  255923ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  256394ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  256494ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  297969ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-09pw6, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  312400ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  312777ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  312867ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  353458ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-0tv98, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  368678ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  369154ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  369241ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  412536ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-szlt4, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  428089ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  428995ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  429244ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  468826ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-qylz2, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  484576ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  485542ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  485774ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  527124ms] [WARNING] [Cloudflare Turnstile] Cannot find Widget cf-chl-widget-150v5, consider using turnstile.remove() to clean up a widget. @ https://challenges.cloudflare.com/turnstile/v0/g/330e41bb475c/api.js?onload=khCN8&render=explicit:1
+[  542398ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/stats/matches/mapstatsid/237122/-:0
+[  543393ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
+[  543706ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://www.hltv.org/favicon.ico:0
