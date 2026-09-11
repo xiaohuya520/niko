@@ -115,6 +115,9 @@ static kb_mode_t s_kbmode;   // 当前模式
 static int       s_kb_row;   // 行:0..KB_ROWS[mode](末行为功能行)
 static int       s_kb_col;   // 列:字符行 0..列数-1;功能行 0..3
 
+// 前向声明:密码键盘 helper(kb_activate)在 rebuild() 定义之前就调用它
+static void rebuild(void);
+
 // 主菜单条目
 static const struct { const char *label; uint32_t acc; } MENU[] = {
     { "实时比分", C_RED  },
@@ -880,6 +883,9 @@ static void do_ok_single(void)
         }
         break;
     }
+
+    case VIEW_PASS:
+        break;   // 密码页的确定键在 demo_csboard_key() 里独立处理
     }
 }
 
