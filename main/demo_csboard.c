@@ -434,11 +434,13 @@ static void build_live(void)
     put_logo(card, 12, 8, true, m->t1_logo, m->t1_color);
     put_logo(card, 164, 8, true, m->t2_logo, m->t2_color);
 
-    char tn[20];
-    trunc_u8(tn, sizeof(tn), m->t1_name, 6);
-    label_w(card, 4, 60, 64, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
-    trunc_u8(tn, sizeof(tn), m->t2_name, 6);
-    label_w(card, 156, 60, 64, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
+    // 队名交给 LVGL 按真实字宽省略(LV_LABEL_LONG_DOT),
+    // 105 支战队里 GamerLegion / Virtus.pro 这类长名才不会被硬切。
+    char tn[CS_TEAM_LEN * 2];
+    trunc_u8(tn, sizeof(tn), m->t1_name, 12);
+    label_fit(card, 4, 60, 64, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
+    trunc_u8(tn, sizeof(tn), m->t2_name, 12);
+    label_fit(card, 156, 60, 64, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
 
     // 中间大比分 / VS
     char sc[32];
@@ -543,18 +545,18 @@ static void build_list(bool upcoming)
         label_at(row, 6, 2, dl2, &lv_font_montserrat_14, upcoming ? C_YEL : C_DIM2);
 
         char ev[40];
-        trunc_u8(ev, sizeof(ev), m->event, 7);
-        label_w(row, 98, 1, 116, ev, &font_cn16, C_DIM2, LV_TEXT_ALIGN_LEFT);
+        trunc_u8(ev, sizeof(ev), m->event, 10);
+        label_fit(row, 96, 1, 118, 18, ev, &font_cn16, C_DIM2, LV_TEXT_ALIGN_LEFT);
 
         // 第二行:队标 + 队名 + 比分 + 队名 + 队标
         put_logo(row, 6, 22, false, m->t1_logo, m->t1_color);
         put_logo(row, 198, 22, false, m->t2_logo, m->t2_color);
 
-        char t1[20], t2[20];
-        trunc_u8(t1, sizeof(t1), m->t1_name, 6);
-        trunc_u8(t2, sizeof(t2), m->t2_name, 6);
-        label_w(row, 30, 22, 56, t1, &font_cn16, C_TEXT, LV_TEXT_ALIGN_LEFT);
-        label_w(row, 138, 22, 56, t2, &font_cn16, C_TEXT, LV_TEXT_ALIGN_RIGHT);
+        char t1[CS_TEAM_LEN * 2], t2[CS_TEAM_LEN * 2];
+        trunc_u8(t1, sizeof(t1), m->t1_name, 12);
+        trunc_u8(t2, sizeof(t2), m->t2_name, 12);
+        label_fit(row, 28, 22, 60, 20, t1, &font_cn16, C_TEXT, LV_TEXT_ALIGN_LEFT);
+        label_fit(row, 136, 22, 60, 20, t2, &font_cn16, C_TEXT, LV_TEXT_ALIGN_RIGHT);
 
         char sc[32];
         if (upcoming) snprintf(sc, sizeof(sc), "VS");
@@ -565,7 +567,7 @@ static void build_list(bool upcoming)
             else if (m->score2 > m->score1) sccol = C_RED;
             else                            sccol = C_DIM;
         }
-        label_w(row, 92, 20, 40, sc, &lv_font_montserrat_20, sccol, LV_TEXT_ALIGN_CENTER);
+        label_w(row, 90, 20, 44, sc, &lv_font_montserrat_20, sccol, LV_TEXT_ALIGN_CENTER);
     }
 }
 

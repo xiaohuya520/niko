@@ -25,7 +25,8 @@
 #define CS_STATUS_LEN   10
 #define CS_TEAM_LEN     20
 #define CS_SHORT_LEN    6
-#define CS_LOGO_LEN     12
+// 队标 id 最长的是 "astralis-talent"(15 字符),留到 24 免得被截断后查不到表
+#define CS_LOGO_LEN     24
 #define CS_MAP_LEN      20
 #define CS_UPDATED_LEN  24
 
