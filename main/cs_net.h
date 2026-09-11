@@ -16,33 +16,44 @@
 
 // ---------------- 数据模型 ----------------
 #define CS_MAX_MAPS     5
-#define CS_MAX_MATCHES  12
+#define CS_MAX_MATCHES  16
 
-#define CS_EVENT_LEN    44
-#define CS_DATE_LEN     10
+#define CS_EVENT_LEN    40
+#define CS_DATE_LEN     12
+#define CS_TIME_LEN     8
 #define CS_BO_LEN       6
 #define CS_STATUS_LEN   10
-#define CS_TEAM_LEN     22
+#define CS_TEAM_LEN     20
 #define CS_SHORT_LEN    6
-#define CS_MAP_LEN      16
+#define CS_LOGO_LEN     12
+#define CS_MAP_LEN      20
 #define CS_UPDATED_LEN  24
 
+// 比赛状态(与 JSON 里 status 字段一致)
+#define CS_ST_LIVE      "live"       // 进行中
+#define CS_ST_FINISHED  "finished"   // 已结束(历史战绩)
+#define CS_ST_UPCOMING  "upcoming"   // 未开始(赛事预告)
+
 typedef struct {
-    char name[CS_MAP_LEN];   // Anubis / Inferno / Mirage ...
+    char name[CS_MAP_LEN];   // 英文图名 Mirage / Inferno ...(用于配色)
+    char cn[CS_MAP_LEN];     // 中文图名 荒漠迷城 ...
     int  s1;                 // 左队(team1)得分
     int  s2;                 // 右队(team2)得分
+    int  winner;             // 1=左胜 2=右胜 0=未知
 } cs_map_t;
 
 typedef struct {
-    char     event[CS_EVENT_LEN];   // 赛事名
-    char     date[CS_DATE_LEN];     // 08/31
+    char     event[CS_EVENT_LEN];   // 赛事名(中文,如 "BLAST 世界总决赛")
+    char     stage[CS_EVENT_LEN];   // 阶段(如 "决赛"/"半决赛"),可空
+    char     date[CS_DATE_LEN];     // 09-11
+    char     time[CS_TIME_LEN];     // 20:00(预告用)
     char     bo[CS_BO_LEN];         // BO3
-    char     status[CS_STATUS_LEN]; // live / upcoming / finished
-    char     t1_name[CS_TEAM_LEN];
-    char     t1_short[CS_SHORT_LEN];
-    uint32_t t1_color;              // 0xRRGGBB
+    char     status[CS_STATUS_LEN]; // live / finished / upcoming
+    char     t1_name[CS_TEAM_LEN];  // G2 / NAVI ...(真实队名,保持原文)
+    char     t1_logo[CS_LOGO_LEN];  // 队标 id,对应 cs_logo_get()
+    uint32_t t1_color;
     char     t2_name[CS_TEAM_LEN];
-    char     t2_short[CS_SHORT_LEN];
+    char     t2_logo[CS_LOGO_LEN];
     uint32_t t2_color;
     int      score1;
     int      score2;
@@ -108,6 +119,10 @@ bool             cs_data_is_from_net(void);
 
 esp_err_t cs_data_load_cache(void);      // 从 NVS 载入缓存;无缓存则载入内置示例
 void      cs_data_use_builtin(void);
+
+// 按状态筛选:把 cs_data() 中 status == st 的下标写进 idx_out(最多 max 个),
+// 返回命中个数。st 传 NULL 表示不过滤(全部)。
+int cs_data_filter(const char *st, int *idx_out, int max);
 
 // 异步联网刷新。完成后 cs_data_fetch_state() 变 OK/FAIL,cs_data() 为新数据。
 void            cs_data_refresh_async(void);

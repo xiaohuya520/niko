@@ -29,6 +29,10 @@ CONFIG_LV_FONT_MONTSERRAT_28=y
 # CS 看板对象较多(比分卡 + 地图行 + Wi-Fi 列表),32KB 留出余量。
 CONFIG_LV_MEM_SIZE_KILOBYTES=32
 
+# 中文字体(cs_font_cn16)位图约 380KB,glyph 位图偏移会超过 64KB,
+# 开启 32 位位图索引,避免定点截断导致字形错乱。
+CONFIG_LV_FONT_FMT_TXT_LARGE=y
+
 # --- HTTPS / 联网数据 ---
 # 数据源走 https(jsDelivr CDN),需要根证书包来做 TLS 校验。
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y

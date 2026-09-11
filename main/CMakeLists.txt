@@ -11,6 +11,8 @@ idf_component_register(
          "demo_ble.c"
          "demo_low_power.c"
          "cs_net.c"
+         "cs_assets.c"
+         "cs_font_cn16.c"
          "demo_csboard.c"
     INCLUDE_DIRS "."
     REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_timer esp_wifi nvs_flash
