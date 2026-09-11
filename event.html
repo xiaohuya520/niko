@@ -526,6 +526,133 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
 .ev-e-f{display:flex;gap:14px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
 .ev-e-go{margin-top:9px;font-size:12.5px;font-weight:700;color:var(--amber)}
 
+/* ========== 选手页：顶部大图 + 官方照片墙 + 资料卡 ========== */
+.phero{position:relative;border-radius:20px;overflow:hidden;margin-top:14px;
+  background:#0E1024;box-shadow:var(--shadow-lg);isolation:isolate}
+.phero-img{display:block;width:100%;height:clamp(252px,70vw,392px);object-fit:cover;
+  object-position:center 20%;transform:scale(1.02);transition:transform 1.1s cubic-bezier(.2,.7,.3,1)}
+@media(hover:hover){.phero:hover .phero-img{transform:scale(1.06)}}
+.phero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(8,10,26,.04) 0%,rgba(8,10,26,.10) 36%,rgba(8,10,26,.72) 74%,rgba(8,10,26,.95) 100%),
+    linear-gradient(100deg,rgba(8,10,26,.6) 0%,rgba(8,10,26,.18) 46%,rgba(8,10,26,0) 74%)}
+.phero-id{position:absolute;left:18px;right:18px;bottom:16px;z-index:2}
+.phero-name{font-family:var(--tech);font-size:clamp(38px,12vw,58px);font-weight:700;
+  color:#fff;line-height:.96;letter-spacing:.01em;text-shadow:0 2px 24px rgba(0,0,0,.55)}
+.phero-full{font-family:var(--mono);font-size:13px;color:rgba(255,255,255,.88);margin-top:7px;
+  letter-spacing:.04em;text-shadow:0 1px 12px rgba(0,0,0,.6)}
+.phero-meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:10px;
+  font-family:var(--mono);font-size:11.5px;color:rgba(255,255,255,.82);letter-spacing:.04em}
+.phero-meta b{color:#fff;font-weight:700}
+.phero-meta .sep{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.55)}
+.phero-badge{position:absolute;top:13px;left:13px;z-index:2;display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:999px;background:rgba(10,12,30,.52);border:1px solid rgba(255,255,255,.24);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  font-family:var(--mono);font-size:10.5px;color:#fff;letter-spacing:.1em;text-transform:uppercase}
+.phero-badge .dot{width:6px;height:6px;border-radius:50%;background:#3BE39B;box-shadow:0 0 8px #3BE39B}
+.phero-gal{position:absolute;top:13px;right:13px;z-index:3;display:inline-flex;align-items:center;gap:5px;
+  padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.32);color:#fff;cursor:pointer;
+  background:linear-gradient(120deg,rgba(91,92,230,.94),rgba(31,182,201,.9));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.7)}
+.phero-gal:active{transform:scale(.95)}
+
+/* 关键数据 chips */
+.pchips{display:flex;gap:9px;overflow-x:auto;padding:12px 2px 5px;scrollbar-width:none;margin:0 -2px}
+.pchips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-width:98px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:10px 13px;box-shadow:var(--shadow-sm)}
+.chip b{display:block;font-family:var(--tech);font-size:21px;font-weight:700;color:var(--ink);
+  letter-spacing:.01em;line-height:1.1}
+.chip.hl b{background:var(--grad-num);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.chip span{display:block;font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:.1em;
+  text-transform:uppercase;margin-top:4px}
+
+/* 个人简介 */
+.pbio{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:18px;padding:16px 17px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;
+  margin-top:13px}
+.pbio::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--grad)}
+.pbio-h{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.16em;
+  text-transform:uppercase;font-weight:700;padding-left:8px}
+.pbio p{margin-top:9px;padding-left:8px;font-size:14px;line-height:1.85;color:var(--ink2);letter-spacing:.01em}
+.pbio p b{color:var(--ink);font-weight:700}
+
+/* 官方照片墙（可横向滑动） */
+.pwall{display:flex;gap:11px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:4px 14px 13px;margin:0 -14px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;
+  scrollbar-color:var(--line-soft) transparent}
+.pwall::-webkit-scrollbar{height:5px}
+.pwall::-webkit-scrollbar-thumb{background:var(--line-soft);border-radius:3px}
+.pwall::-webkit-scrollbar-track{background:transparent}
+.pw-item{flex:0 0 auto;width:172px;scroll-snap-align:start;position:relative;border-radius:15px;
+  overflow:hidden;background:#0E1024;box-shadow:var(--shadow-md);cursor:zoom-in;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1),box-shadow .35s}
+.pw-item:active{transform:scale(.973)}
+@media(hover:hover){.pw-item:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}}
+.pw-item img{display:block;width:100%;height:228px;object-fit:cover;object-position:center 16%;
+  transition:transform .7s cubic-bezier(.2,.7,.3,1)}
+@media(hover:hover){.pw-item:hover img{transform:scale(1.07)}}
+.pw-cap{position:absolute;left:0;right:0;bottom:0;padding:24px 11px 9px;color:#fff;
+  background:linear-gradient(180deg,rgba(6,8,20,0),rgba(6,8,20,.86) 60%,rgba(6,8,20,.96))}
+.pw-cap b{display:block;font-size:12.5px;font-weight:700;letter-spacing:.01em;line-height:1.28;
+  text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.pw-cap span{display:block;font-family:var(--mono);font-size:10.5px;color:rgba(255,255,255,.72);margin-top:3px}
+.pw-new{position:absolute;top:9px;left:9px;z-index:2;padding:3px 9px;border-radius:999px;
+  background:linear-gradient(120deg,#5B5CE6,#1FB6C9);font-family:var(--mono);font-size:9.5px;
+  color:#fff;letter-spacing:.14em;font-weight:700;box-shadow:0 4px 12px -4px rgba(0,0,0,.6)}
+.pw-hint{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;letter-spacing:.1em;
+  margin-top:1px}
+.pw-all{display:block;margin:12px auto 0;padding:9px 20px;border-radius:999px;border:1px solid var(--line-soft);
+  background:var(--panel);color:var(--amber);font-family:var(--mono);font-size:12px;font-weight:700;
+  letter-spacing:.08em;cursor:pointer}
+.pw-all:active{transform:scale(.97)}
+
+/* 个人资料（分组卡片） */
+.pinfo{display:grid;gap:12px}
+.pcard{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:18px;padding:15px 16px;box-shadow:var(--shadow-sm);position:relative}
+.pcard-h{display:flex;align-items:center;gap:9px;margin-bottom:13px}
+.pcard-h b{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink);letter-spacing:.03em;
+  position:relative;padding-left:13px}
+.pcard-h b::before{content:"";position:absolute;left:0;top:.12em;bottom:.12em;width:4px;border-radius:2px;
+  background:var(--grad)}
+.pcard-h em{font-family:var(--mono);font-size:10.5px;color:var(--dim);font-style:normal;letter-spacing:.1em;
+  margin-left:auto}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:12px 14px}
+.pgrid.one{grid-template-columns:1fr}
+.pi{min-width:0}
+.pi-k{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.pi-v{margin-top:4px;font-size:14px;color:var(--ink);font-weight:600;letter-spacing:.01em;
+  word-break:break-word;line-height:1.5}
+.pi-v.mono{font-family:var(--mono);font-size:12.5px;font-weight:500}
+.pi-v.grad{background:var(--grad-num);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;font-family:var(--tech);font-size:17px;font-weight:700}
+.pcard .kw{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;
+  background:var(--amber-bg);color:var(--amber);font-family:var(--mono);font-size:11px;font-weight:600;
+  margin:3px 5px 0 0}
+
+/* 照片墙灯箱 */
+.plb{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;
+  flex-direction:column;padding:22px;background:rgba(5,7,18,.94);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.plb.on{display:flex;animation:plbIn .22s ease}
+@keyframes plbIn{from{opacity:0}to{opacity:1}}
+.plb-img{max-width:94vw;max-height:78vh;border-radius:14px;object-fit:contain;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.8);animation:plbZoom .28s cubic-bezier(.2,.8,.3,1)}
+@keyframes plbZoom{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.plb-cap{margin-top:15px;font-family:var(--mono);font-size:12.5px;color:rgba(255,255,255,.9);
+  letter-spacing:.06em;text-align:center}
+.plb-x{position:absolute;top:16px;right:18px;width:38px;height:38px;border-radius:50%;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:17px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.plb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border-radius:12px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:24px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.plb-nav.l{left:14px}.plb-nav.r{right:14px}
+
 /* 移动端微调 */
 @media(max-width:380px){
   .hud-in{padding:10px 12px;gap:9px}
@@ -536,6 +663,9 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
   .row{padding:12px 12px;gap:10px}
   .res{width:28px;height:28px;font-size:12px}
   .sc{width:52px;font-size:16px}
+  .pw-item{width:150px}
+  .pw-item img{height:200px}
+  .pgrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
 }</style>
 </head>
 <body data-page="event">
@@ -706,6 +836,28 @@ async function pullEvent(){
       if(!r.ok) continue;
       const d = await r.json();
       if(d && d.events){ return {data:d, tag}; }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* ===== 官方照片墙数据（可联网更新） ===== */
+let PH = [{"src":"assets/photos/niko_at_blast_open_spring_2026.jpg","caption":"BLAST Open Spring 2026","year":2026,"recent":true},{"src":"assets/photos/niko_at_iem_katowice_2025.jpg","caption":"IEM Katowice 2025","year":2025,"recent":true},{"src":"assets/photos/niko_at_copenhagen_major_2024_eu_rmr.jpg","caption":"Copenhagen Major 欧洲 RMR 2024","year":2024,"recent":true},{"src":"assets/photos/niko_at_iem_cologne_2023.jpg","caption":"IEM Cologne 2023","year":2023,"recent":false},{"src":"assets/photos/niko_at_antwerp_major_2022_eu_rmr.jpg","caption":"Antwerp Major 欧洲 RMR 2022","year":2022,"recent":false},{"src":"assets/photos/niko_at_rio_major_2022_eu_rmr.jpg","caption":"Rio Major 欧洲 RMR 2022","year":2022,"recent":false},{"src":"assets/photos/niko_iem_cologne_2021.jpg","caption":"IEM Cologne 2021","year":2021,"recent":false},{"src":"assets/photos/niko_iem_katowice_2020.jpg","caption":"IEM Katowice 2020","year":2020,"recent":false},{"src":"assets/photos/niko_iem_beijing_2019.jpg","caption":"IEM Beijing 2019","year":2019,"recent":false},{"src":"assets/photos/niko_iem_katowice_2019.jpg","caption":"IEM Katowice 2019","year":2019,"recent":false},{"src":"assets/photos/niko_at_dh_masters_stockholm_2018.jpg","caption":"DreamHack Masters Stockholm 2018","year":2018,"recent":false},{"src":"assets/photos/niko_at_eleague_major_boston_2018.jpg","caption":"ELEAGUE Major Boston 2018","year":2018,"recent":false},{"src":"assets/photos/niko_at_epicenter_2018.jpg","caption":"EPICENTER 2018","year":2018,"recent":false},{"src":"assets/photos/niko_iem_sydney_2018.jpg","caption":"IEM Sydney 2018","year":2018,"recent":false},{"src":"assets/photos/niko_at_epicenter_2017.jpg","caption":"EPICENTER 2017","year":2017,"recent":false},{"src":"assets/photos/niko_at_iem_sydney_2017.jpg","caption":"IEM Sydney 2017","year":2017,"recent":false},{"src":"assets/photos/niko_at_dh_stockholm_2015.jpg","caption":"DreamHack Stockholm 2015","year":2015,"recent":false},{"src":"assets/photos/niko_at_eslm_spring_2015_finals.jpg","caption":"ESL Masters Spring 总决赛 2015","year":2015,"recent":false},{"src":"assets/photos/niko_iem_gamescom_2015.jpg","caption":"IEM Gamescom 2015","year":2015,"recent":false},{"src":"assets/photos/niko_bgf_2013.jpg","caption":"BGF 2013","year":2013,"recent":false},{"src":"assets/photos/niko_at_dhm_malm.jpg","caption":"DreamHack Masters Malmö","year":0,"recent":false},{"src":"assets/photos/niko_epl_s4_finals.jpg","caption":"EPL S4 总决赛","year":0,"recent":false},{"src":"assets/photos/niko_esl_pro_league_season_9_finals.jpg","caption":"ESL Pro League S9 总决赛","year":0,"recent":false},{"src":"assets/photos/niko_esports_heaven_vienna.jpg","caption":"Esports Heaven Vienna","year":0,"recent":false}];
+let PH_FRESH = null;
+function photosData(){ return PH_FRESH || PH || []; }
+async function pullPhotos(){
+  const urls = [];
+  if(REPO && REPO !== 'xiaohuya520/niko'){
+    urls.push(['https://cdn.jsdelivr.net/gh/' + REPO + '@main/photos.json', 'jsDelivr']);
+    urls.push(['https://raw.githubusercontent.com/' + REPO + '/main/photos.json', 'GitHub 直连']);
+  }
+  urls.push(['./photos.json', '同源']);
+  for(const [u, tag] of urls){
+    try{
+      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) continue;
+      const d = await r.json();
+      if(Array.isArray(d) && d.length){ PH_FRESH = d; return tag; }
     }catch(e){}
   }
   return null;
