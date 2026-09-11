@@ -24,6 +24,13 @@ try:
 except Exception:
     pass
 
+# 官方照片墙（由 fetch_photos.py 产出：按年份倒序的官方照片清单）
+PHOTOS = []
+try:
+    PHOTOS = json.loads((ROOT / "photos.json").read_text(encoding="utf-8"))
+except Exception:
+    pass
+
 CSS = r"""/* ========== NiKo 赛事跟踪 · 视觉升级（正规 + 设计感）========== */
 :root{
   --bg:#ECEAF8;
@@ -530,6 +537,133 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
 .ev-e-f{display:flex;gap:14px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
 .ev-e-go{margin-top:9px;font-size:12.5px;font-weight:700;color:var(--amber)}
 
+/* ========== 选手页：顶部大图 + 官方照片墙 + 资料卡 ========== */
+.phero{position:relative;border-radius:20px;overflow:hidden;margin-top:14px;
+  background:#0E1024;box-shadow:var(--shadow-lg);isolation:isolate}
+.phero-img{display:block;width:100%;height:clamp(252px,70vw,392px);object-fit:cover;
+  object-position:center 20%;transform:scale(1.02);transition:transform 1.1s cubic-bezier(.2,.7,.3,1)}
+@media(hover:hover){.phero:hover .phero-img{transform:scale(1.06)}}
+.phero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(8,10,26,.04) 0%,rgba(8,10,26,.10) 36%,rgba(8,10,26,.72) 74%,rgba(8,10,26,.95) 100%),
+    linear-gradient(100deg,rgba(8,10,26,.6) 0%,rgba(8,10,26,.18) 46%,rgba(8,10,26,0) 74%)}
+.phero-id{position:absolute;left:18px;right:18px;bottom:16px;z-index:2}
+.phero-name{font-family:var(--tech);font-size:clamp(38px,12vw,58px);font-weight:700;
+  color:#fff;line-height:.96;letter-spacing:.01em;text-shadow:0 2px 24px rgba(0,0,0,.55)}
+.phero-full{font-family:var(--mono);font-size:13px;color:rgba(255,255,255,.88);margin-top:7px;
+  letter-spacing:.04em;text-shadow:0 1px 12px rgba(0,0,0,.6)}
+.phero-meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:10px;
+  font-family:var(--mono);font-size:11.5px;color:rgba(255,255,255,.82);letter-spacing:.04em}
+.phero-meta b{color:#fff;font-weight:700}
+.phero-meta .sep{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.55)}
+.phero-badge{position:absolute;top:13px;left:13px;z-index:2;display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:999px;background:rgba(10,12,30,.52);border:1px solid rgba(255,255,255,.24);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  font-family:var(--mono);font-size:10.5px;color:#fff;letter-spacing:.1em;text-transform:uppercase}
+.phero-badge .dot{width:6px;height:6px;border-radius:50%;background:#3BE39B;box-shadow:0 0 8px #3BE39B}
+.phero-gal{position:absolute;top:13px;right:13px;z-index:3;display:inline-flex;align-items:center;gap:5px;
+  padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.32);color:#fff;cursor:pointer;
+  background:linear-gradient(120deg,rgba(91,92,230,.94),rgba(31,182,201,.9));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.7)}
+.phero-gal:active{transform:scale(.95)}
+
+/* 关键数据 chips */
+.pchips{display:flex;gap:9px;overflow-x:auto;padding:12px 2px 5px;scrollbar-width:none;margin:0 -2px}
+.pchips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-width:98px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:10px 13px;box-shadow:var(--shadow-sm)}
+.chip b{display:block;font-family:var(--tech);font-size:21px;font-weight:700;color:var(--ink);
+  letter-spacing:.01em;line-height:1.1}
+.chip.hl b{background:var(--grad-num);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.chip span{display:block;font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:.1em;
+  text-transform:uppercase;margin-top:4px}
+
+/* 个人简介 */
+.pbio{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:18px;padding:16px 17px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;
+  margin-top:13px}
+.pbio::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--grad)}
+.pbio-h{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.16em;
+  text-transform:uppercase;font-weight:700;padding-left:8px}
+.pbio p{margin-top:9px;padding-left:8px;font-size:14px;line-height:1.85;color:var(--ink2);letter-spacing:.01em}
+.pbio p b{color:var(--ink);font-weight:700}
+
+/* 官方照片墙（可横向滑动） */
+.pwall{display:flex;gap:11px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:4px 14px 13px;margin:0 -14px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;
+  scrollbar-color:var(--line-soft) transparent}
+.pwall::-webkit-scrollbar{height:5px}
+.pwall::-webkit-scrollbar-thumb{background:var(--line-soft);border-radius:3px}
+.pwall::-webkit-scrollbar-track{background:transparent}
+.pw-item{flex:0 0 auto;width:172px;scroll-snap-align:start;position:relative;border-radius:15px;
+  overflow:hidden;background:#0E1024;box-shadow:var(--shadow-md);cursor:zoom-in;
+  transition:transform .35s cubic-bezier(.2,.7,.3,1),box-shadow .35s}
+.pw-item:active{transform:scale(.973)}
+@media(hover:hover){.pw-item:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}}
+.pw-item img{display:block;width:100%;height:228px;object-fit:cover;object-position:center 16%;
+  transition:transform .7s cubic-bezier(.2,.7,.3,1)}
+@media(hover:hover){.pw-item:hover img{transform:scale(1.07)}}
+.pw-cap{position:absolute;left:0;right:0;bottom:0;padding:24px 11px 9px;color:#fff;
+  background:linear-gradient(180deg,rgba(6,8,20,0),rgba(6,8,20,.86) 60%,rgba(6,8,20,.96))}
+.pw-cap b{display:block;font-size:12.5px;font-weight:700;letter-spacing:.01em;line-height:1.28;
+  text-shadow:0 1px 8px rgba(0,0,0,.5)}
+.pw-cap span{display:block;font-family:var(--mono);font-size:10.5px;color:rgba(255,255,255,.72);margin-top:3px}
+.pw-new{position:absolute;top:9px;left:9px;z-index:2;padding:3px 9px;border-radius:999px;
+  background:linear-gradient(120deg,#5B5CE6,#1FB6C9);font-family:var(--mono);font-size:9.5px;
+  color:#fff;letter-spacing:.14em;font-weight:700;box-shadow:0 4px 12px -4px rgba(0,0,0,.6)}
+.pw-hint{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;letter-spacing:.1em;
+  margin-top:1px}
+.pw-all{display:block;margin:12px auto 0;padding:9px 20px;border-radius:999px;border:1px solid var(--line-soft);
+  background:var(--panel);color:var(--amber);font-family:var(--mono);font-size:12px;font-weight:700;
+  letter-spacing:.08em;cursor:pointer}
+.pw-all:active{transform:scale(.97)}
+
+/* 个人资料（分组卡片） */
+.pinfo{display:grid;gap:12px}
+.pcard{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:18px;padding:15px 16px;box-shadow:var(--shadow-sm);position:relative}
+.pcard-h{display:flex;align-items:center;gap:9px;margin-bottom:13px}
+.pcard-h b{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink);letter-spacing:.03em;
+  position:relative;padding-left:13px}
+.pcard-h b::before{content:"";position:absolute;left:0;top:.12em;bottom:.12em;width:4px;border-radius:2px;
+  background:var(--grad)}
+.pcard-h em{font-family:var(--mono);font-size:10.5px;color:var(--dim);font-style:normal;letter-spacing:.1em;
+  margin-left:auto}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:12px 14px}
+.pgrid.one{grid-template-columns:1fr}
+.pi{min-width:0}
+.pi-k{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.pi-v{margin-top:4px;font-size:14px;color:var(--ink);font-weight:600;letter-spacing:.01em;
+  word-break:break-word;line-height:1.5}
+.pi-v.mono{font-family:var(--mono);font-size:12.5px;font-weight:500}
+.pi-v.grad{background:var(--grad-num);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;font-family:var(--tech);font-size:17px;font-weight:700}
+.pcard .kw{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;
+  background:var(--amber-bg);color:var(--amber);font-family:var(--mono);font-size:11px;font-weight:600;
+  margin:3px 5px 0 0}
+
+/* 照片墙灯箱 */
+.plb{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;
+  flex-direction:column;padding:22px;background:rgba(5,7,18,.94);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.plb.on{display:flex;animation:plbIn .22s ease}
+@keyframes plbIn{from{opacity:0}to{opacity:1}}
+.plb-img{max-width:94vw;max-height:78vh;border-radius:14px;object-fit:contain;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.8);animation:plbZoom .28s cubic-bezier(.2,.8,.3,1)}
+@keyframes plbZoom{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.plb-cap{margin-top:15px;font-family:var(--mono);font-size:12.5px;color:rgba(255,255,255,.9);
+  letter-spacing:.06em;text-align:center}
+.plb-x{position:absolute;top:16px;right:18px;width:38px;height:38px;border-radius:50%;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:17px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.plb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border-radius:12px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:24px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
+.plb-nav.l{left:14px}.plb-nav.r{right:14px}
+
 /* 移动端微调 */
 @media(max-width:380px){
   .hud-in{padding:10px 12px;gap:9px}
@@ -540,6 +674,9 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
   .row{padding:12px 12px;gap:10px}
   .res{width:28px;height:28px;font-size:12px}
   .sc{width:52px;font-size:16px}
+  .pw-item{width:150px}
+  .pw-item img{height:200px}
+  .pgrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
 }"""
 
 # ===== CS 经典武器剪影（内联 SVG sprite，纯几何图形绘制）=====
@@ -704,6 +841,28 @@ async function pullEvent(){
       if(!r.ok) continue;
       const d = await r.json();
       if(d && d.events){ return {data:d, tag}; }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* ===== 官方照片墙数据（可联网更新） ===== */
+let PH = __PHOTOS__;
+let PH_FRESH = null;
+function photosData(){ return PH_FRESH || PH || []; }
+async function pullPhotos(){
+  const urls = [];
+  if(REPO && REPO !== '__REPO__'){
+    urls.push(['https://cdn.jsdelivr.net/gh/' + REPO + '@main/photos.json', 'jsDelivr']);
+    urls.push(['https://raw.githubusercontent.com/' + REPO + '/main/photos.json', 'GitHub 直连']);
+  }
+  urls.push(['./photos.json', '同源']);
+  for(const [u, tag] of urls){
+    try{
+      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) continue;
+      const d = await r.json();
+      if(Array.isArray(d) && d.length){ PH_FRESH = d; return tag; }
     }catch(e){}
   }
   return null;
@@ -1316,7 +1475,95 @@ function render(){
 async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
 """
 
-PLAYER_JS = CORE_JS + r"""
+PLAYER_JS = CORE_JS + r"""let CURPH = 0;                 // 照片墙灯箱当前索引
+
+/* ---------- 个人简介文案（NiKo） ---------- */
+const NIKO_BIO = '尼科拉·科瓦奇（Nikola Kovač），1997 年 2 月 16 日生于波黑，'
+  + '<b>被公认为 CS 历史上最顶尖的步枪手之一</b>。2009 年接触 CS 系列，2013 年踏上职业赛场，'
+  + '先后效力 mousesports、FaZe Clan、G2 Esports，2025 年 1 月加盟 Team Falcons。'
+  + '2026 年 6 月，他在 IEM 科隆 Major 决赛 <b>3-0 击败 FURIA</b>，拿下职业生涯<b>首个 Major 冠军</b>——'
+  + '距他首次打进 Major 决赛已隔 3067 天。生涯 10 次入选 HLTV TOP20、10 次大赛 MVP，总奖金突破 200 万美元。';
+
+/* ---------- 资料卡（分组 + 强调样式） ---------- */
+function pinfoCard(title, tag, cells, full){
+  const mk = c => `<div class="pi"><div class="pi-k">${esc(c.k)}</div>
+    <div class="pi-v ${c.cls || ''}">${c.html != null ? c.html : esc(c.v)}</div></div>`;
+  const ok = c => c && (c.html != null || (c.v !== '' && c.v != null));
+  const a = (cells || []).filter(ok).map(mk).join('');
+  const b = (full || []).filter(ok).map(mk).join('');
+  if(!a && !b) return '';
+  return `<div class="pcard">
+    <div class="pcard-h"><b>${esc(title)}</b>${tag ? `<em>${esc(tag)}</em>` : ''}</div>
+    ${a ? `<div class="pgrid">${a}</div>` : ''}
+    ${b ? `<div class="pgrid one" style="margin-top:12px">${b}</div>` : ''}
+  </div>`;
+}
+
+/* ---------- 官方照片墙（横向可滑动） ---------- */
+function pwallSec(){
+  const L = photosData();
+  if(!L.length) return '';
+  const items = L.map((p, i) => `
+    <div class="pw-item" data-i="${i}">
+      ${i === 0 ? '<span class="pw-new">最新</span>' : ''}
+      <img src="${esc(p.src)}" alt="${esc(p.caption)}" loading="lazy">
+      <div class="pw-cap"><b>${esc(p.caption)}</b>
+        <span>${p.year ? p.year : '官方照片'}</span></div>
+    </div>`).join('');
+  const newest = L[0];
+  return `<div class="sec">
+    <div class="sec-h"><b>官方照片墙</b><i></i>
+      <em>${L.length} 张 · 最近 ${esc(newest.caption)}</em></div>
+    <div class="pwall" id="pwall">${items}</div>
+    <div class="pw-hint">← 左右滑动 · 点按放大 →</div>
+  </div>`;
+}
+
+function plbHtml(){
+  return `<div class="plb" id="plb">
+    <span class="plb-x" id="plbX">✕</span>
+    <span class="plb-nav l" id="plbL">‹</span>
+    <img class="plb-img" id="plbImg" alt="">
+    <div class="plb-cap" id="plbCap"></div>
+    <span class="plb-nav r" id="plbR">›</span>
+  </div>`;
+}
+function openLb(i){
+  const L = photosData(); if(!L.length) return;
+  CURPH = (i % L.length + L.length) % L.length;
+  const p = L[CURPH];
+  const img = document.getElementById('plbImg');
+  img.src = p.src; img.alt = p.caption;
+  document.getElementById('plbCap').textContent = p.caption + (p.year ? ' · ' + p.year : '');
+  document.getElementById('plb').classList.add('on');
+}
+function closeLb(a){
+  const e = document.getElementById('plb'); if(e) e.classList.remove('on');
+}
+function bindPhotos(){
+  const wall = document.getElementById('pwall'), plb = document.getElementById('plb');
+  const gal = document.getElementById('heroGal');
+  if(gal) gal.onclick = () => {
+    const w = document.getElementById('pwall');
+    if(w) w.scrollIntoView({behavior:'smooth', block:'center'});
+  };
+  if(wall) wall.addEventListener('click', e => {
+    const it = e.target.closest('.pw-item'); if(it) openLb(+it.dataset.i);
+  });
+  if(!plb) return;
+  document.getElementById('plbX').onclick = closeLb;
+  document.getElementById('plbL').onclick = e => { e.stopPropagation(); openLb(CURPH - 1); };
+  document.getElementById('plbR').onclick = e => { e.stopPropagation(); openLb(CURPH + 1); };
+  plb.addEventListener('click', e => { if(e.target === plb) closeLb(); });
+  document.addEventListener('keydown', e => {
+    if(!plb.classList.contains('on')) return;
+    if(e.key === 'Escape') closeLb();
+    else if(e.key === 'ArrowLeft') openLb(CURPH - 1);
+    else if(e.key === 'ArrowRight') openLb(CURPH + 1);
+  });
+}
+
+/* ---------- 页面 ---------- */
 function render(){
   const d = dataOf(), id = params.get('id') || d.player.nick;
   const app = document.getElementById('app');
@@ -1329,97 +1576,141 @@ function render(){
   }
   const isNiko = p.id === d.player.nick;
   const P = d.player, c = P.career || {}, g = P.gear || {}, x = P.crosshair || {};
+  const PLIST = photosData();
+  const photoSrc = (isNiko && PLIST.length) ? PLIST[0].src : p.photo;
 
-  const rows = [
-    ['本名', p.name], ['国籍', p.nationality], ['出生', p.born],
-    ['年龄', p.age ? p.age + ' 岁' : ''], ['队内角色', p.role],
-    ['选手状态', p.status], ['职业年限', p.years_active], ['所属战队', p.team],
-    ['生涯奖金', p.winnings], ['昵称', p.nicknames], ['曾用 ID', p.alt_ids]
-  ].filter(([,v]) => v).map(([k,v]) =>
-    `<div class="kv-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
-
-  const histHtml = (p.history || []).length ? `
-    <div class="sec">
-      <div class="sec-h"><b>战队经历</b><i></i><em>近期 ${p.history.length} 段</em></div>
-      <div class="kv">${p.history.slice().reverse().map(h =>
-        `<div class="kv-row"><span>${esc(h.from)}</span><b>${esc(h.team)}
-          <span style="color:var(--dim);font-family:var(--mono);font-size:11px">
-          （至 ${esc(h.to)}）</span></b></div>`).join('')}</div>
-    </div>` : '';
-
-  const nikoExtra = isNiko ? `
-    <div class="sec">
-      <div class="sec-h"><b>生涯数据</b><i></i><em>HLTV</em></div>
-      <div class="grid">
-        <div class="st hl"><span>近三个月评分</span><b>${P.rating_3m.toFixed(2)}</b></div>
-        <div class="st"><span>世界排名</span><b>#${esc(P.team_rank)}</b></div>
-        <div class="st"><span>总击杀</span><b>${(c.kills||0).toLocaleString('en-US')}</b></div>
-        <div class="st"><span>生涯 K/D</span><b>${(c.kd||0).toFixed(2)}</b></div>
-        <div class="st"><span>生涯 ADR</span><b>${esc(c.adr)}</b></div>
-        <div class="st"><span>每回合击杀</span><b>${esc(c.kpr)}</b></div>
-        <div class="st"><span>爆头率</span><b>${esc(c.hs)}%</b></div>
-        <div class="st"><span>出场地图数</span><b>${(c.maps||0).toLocaleString('en-US')}</b></div>
-        <div class="st"><span>生涯 MVP</span><b>${esc(c.mvp)}</b></div>
-        <div class="st"><span>TOP20 次数</span><b>${esc(c.top20)}</b></div>
+  /* 顶部大图 */
+  const hero = `<div class="phero">
+    <img class="phero-img" src="${esc(photoSrc)}" alt="${esc(p.id)}">
+    <div class="phero-scrim"></div>
+    <span class="phero-badge"><i class="dot"></i>${esc(p.status || '现役')} · ${esc(p.team || '')}</span>
+    ${(isNiko && PLIST.length) ? `<span class="phero-gal" id="heroGal">照片墙 ${PLIST.length} 张 ›</span>` : ''}
+    <div class="phero-id">
+      <div class="phero-name">${esc(p.id)}</div>
+      <div class="phero-full">${esc(p.name || '')}${p.native_name ? ' · ' + esc(p.native_name) : ''}</div>
+      <div class="phero-meta">
+        <b>${esc(p.nationality || '')}</b><i class="sep"></i><span>${esc(p.role || '')}</span>
+        ${p.age ? `<i class="sep"></i><span>${p.age} 岁</span>` : ''}
+        ${isNiko ? `<i class="sep"></i><span>世界排名 <b>#${esc(P.team_rank)}</b></span>` : ''}
       </div>
-      ${(P.major||{}).title ? `<div class="kv" style="margin-top:10px">
-        <div class="kv-row"><span>MAJOR</span><b>${esc(P.major.title)}
-          <span style="color:var(--dim);font-family:var(--mono);font-size:11px">${esc(P.major.result||'')}</span></b></div>
-        ${P.major.note ? `<div class="kv-row"><span>备注</span><b>${esc(P.major.note)}</b></div>` : ''}
-      </div>` : ''}
     </div>
-    <div class="sec">
-      <div class="sec-h"><b>外设与设置</b><i></i><em>Liquipedia</em></div>
-      <div class="kv">${Object.entries({
-        '鼠标': g.mouse, '鼠标垫': g.mousepad, '游戏内灵敏度': g.sens, 'DPI': g.dpi,
-        'eDPI': g.edpi, '轮询率': g.polling, '显示器': g.monitor, '刷新率': g.refresh,
-        '分辨率': g.resolution, '键盘': g.keyboard, '耳机': g.headset
-      }).filter(([,v]) => v).map(([k,v]) =>
-        `<div class="kv-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
-    </div>
-    <div class="sec">
-      <div class="sec-h"><b>准星</b><i></i><em>${P.crosshair_sharecode?'含分享码':''}</em></div>
+  </div>`;
+
+  /* 关键数据 chips */
+  const chips = isNiko ? `<div class="pchips">
+    <div class="chip hl"><b>${P.rating_3m.toFixed(2)}</b><span>近三月评分</span></div>
+    <div class="chip"><b>#${esc(P.team_rank)}</b><span>世界排名</span></div>
+    <div class="chip"><b>${(c.kills || 0).toLocaleString('en-US')}</b><span>生涯击杀</span></div>
+    <div class="chip"><b>${(c.kd || 0).toFixed(2)}</b><span>生涯 K/D</span></div>
+    <div class="chip"><b>${esc(c.mvp)}</b><span>大赛 MVP</span></div>
+    <div class="chip"><b>${esc(c.top20)}</b><span>TOP20</span></div>
+    <div class="chip"><b>${esc(P.winnings)}</b><span>生涯奖金</span></div>
+  </div>` : '';
+
+  /* 个人简介 */
+  const bioTxt = isNiko ? NIKO_BIO : (p.note ? esc(p.note) : '');
+  const bio = bioTxt ? `<div class="pbio">
+    <div class="pbio-h">${isNiko ? '个人简介' : '选手简介'}</div>
+    <p>${bioTxt}</p>
+  </div>` : '';
+
+  /* 个人资料：基本信息 / 战队信息 / 荣誉与生涯 */
+  const gBase = pinfoCard('基本信息', 'Liquipedia', [
+    {k:'本名', v:p.name},
+    {k:'母语名', v:p.native_name},
+    {k:'国籍', v:p.nationality},
+    {k:'出生', v:p.born},
+    {k:'年龄', v:p.age ? p.age + ' 岁' : ''},
+    {k:'选手状态', v:p.status, cls:'grad'},
+    {k:'职业年限', v:p.years_active},
+    {k:'队内角色', v:p.role}
+  ], [
+    {k:'曾用 ID', v:p.alt_ids, cls:'mono'}
+  ]);
+
+  const gTeam = pinfoCard('战队信息', isNiko ? P.team : p.team, [
+    {k:'所属战队', v:p.team, cls:'grad'},
+    {k:'加入日期', v:isNiko ? P.joined : ''},
+    {k:'世界排名', v:isNiko ? '#' + P.team_rank : ''},
+    {k:'队伍积分', v:isNiko ? P.team_points : ''},
+    {k:'教练', v:isNiko ? P.coach : ''}
+  ], [
+    {k:'队友', v:(isNiko && (P.teammates || []).length) ? P.teammates.join(' · ') : ''}
+  ]);
+
+  const honors = [];
+  if(isNiko){
+    if((P.major || {}).title) honors.push({k:'MAJOR 冠军', html:
+      `${esc(P.major.title)} <span style="color:var(--dim);font-weight:400">${esc(P.major.result || '')}</span>`});
+    honors.push({k:'生涯奖金', v:P.winnings, cls:'grad'});
+    honors.push({k:'HLTV TOP20', v:(c.top20 || 0) + ' 次'});
+    honors.push({k:'大赛 MVP', v:(c.mvp || 0) + ' 次'});
+    honors.push({k:'出场地图', v:(c.maps || 0).toLocaleString('en-US')});
+    honors.push({k:'生涯 ADR', v:c.adr});
+    honors.push({k:'爆头率', v:(c.hs || 0) + '%'});
+    honors.push({k:'每回合击杀', v:c.kpr});
+  }
+  const gHonor = isNiko ? pinfoCard('荣誉与生涯', 'HLTV', honors,
+    (P.major && P.major.note) ? [{k:'MAJOR 备注', v:P.major.note}] : []) : '';
+
+  /* 战队经历 */
+  const hist = (p.history || []).length ? `<div class="pcard">
+    <div class="pcard-h"><b>战队经历</b><em>${p.history.length} 段</em></div>
+    <div class="pgrid one">${p.history.slice().reverse().map(h => `
+      <div class="pi" style="display:flex;align-items:baseline;gap:10px">
+        <span style="font-size:14.5px;font-weight:700;color:var(--ink)">${esc(h.team)}</span>
+        <span class="pi-k" style="margin-left:auto;white-space:nowrap">${esc(h.from)} → ${esc(h.to)}</span>
+      </div>`).join('')}</div></div>` : '';
+
+  /* 外设与设置 */
+  const gearCard = isNiko ? pinfoCard('外设与设置', 'Liquipedia', [
+    {k:'鼠标', v:g.mouse}, {k:'鼠标垫', v:g.mousepad},
+    {k:'游戏内灵敏度', v:g.sens}, {k:'DPI', v:g.dpi}, {k:'eDPI', v:g.edpi},
+    {k:'轮询率', v:g.polling}, {k:'显示器', v:g.monitor}, {k:'刷新率', v:g.refresh},
+    {k:'分辨率', v:g.resolution}, {k:'键盘', v:g.keyboard}, {k:'耳机', v:g.headset}
+  ]) : '';
+
+  /* 准星 */
+  const xCard = isNiko ? `<div class="sec">
+    <div class="sec-h"><b>准星</b><i></i><em>${P.crosshair_sharecode ? '含分享码' : ''}</em></div>
+    <div class="pcard">
       <div class="xh" id="xhBox"></div>
-      <div class="kv" style="margin-top:10px">
-        <div class="kv-row"><span>参数</span><b>样式 ${esc(x.style||'—')} · 长度 ${esc(x.size||'—')} · 粗细 ${esc(x.thickness||'—')} · 间隙 ${esc(x.gap||'—')}</b></div>
-        <div class="kv-row"><span>颜色</span><b><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#00FF91;vertical-align:middle;margin-right:6px"></i>自定义绿 #00FF91${(x.outline==='No'||x.outline==='否')?' · 无描边':''}${(x.dot==='No'||x.dot==='否')?' · 无中心点':''}</b></div>
-        <div class="kv-row"><span>分享码</span><b style="font-family:var(--mono);font-size:11px">${esc(P.crosshair_sharecode||'—')}</b></div>
+      <div class="pgrid" style="margin-top:14px">
+        <div class="pi"><div class="pi-k">参数</div><div class="pi-v">样式 ${esc(x.style || '—')} · 长度 ${esc(x.size || '—')} · 粗细 ${esc(x.thickness || '—')} · 间隙 ${esc(x.gap || '—')}</div></div>
+        <div class="pi"><div class="pi-k">颜色</div><div class="pi-v"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#00FF91;vertical-align:middle;margin-right:6px"></i>自定义绿 #00FF91${(x.outline === 'No' || x.outline === '否') ? ' · 无描边' : ''}${(x.dot === 'No' || x.dot === '否') ? ' · 无中心点' : ''}</div></div>
+        <div class="pi"><div class="pi-k">分享码</div><div class="pi-v mono">${esc(P.crosshair_sharecode || '—')}</div></div>
       </div>
-    </div>` : '';
+    </div>
+  </div>` : '';
 
   app.innerHTML = `
   <div class="back"><a class="lk" href="team.html">‹ 返回队伍</a></div>
-  <div class="prof" style="margin-top:16px">
-    ${avatar(p.photo, p.id, 'xl')}
-    <div class="prof-txt">
-      <div class="nick">${esc(p.id)}</div>
-      <div class="full">${esc(p.name || '')}</div>
-      <div class="meta">${esc(p.role)}${p.age ? ' · ' + p.age + ' 岁' : ''} · ${esc(p.nationality)}</div>
-    </div>
-  </div>
-  ${p.note ? `<div class="kv" style="margin-top:10px">
-    <div class="kv-row"><span>简介</span><b>${esc(p.note)}</b></div></div>` : ''}
-
+  ${hero}
+  ${chips}
+  ${bio}
+  ${isNiko ? pwallSec() : ''}
   <div class="sec">
-    <div class="sec-h"><b>选手资料</b><i></i><em>Liquipedia</em></div>
-    <div class="kv">${rows}</div>
+    <div class="sec-h"><b>个人资料</b><i></i><em>Liquipedia</em></div>
+    <div class="pinfo">${gBase}${gTeam}${gHonor}${hist}</div>
   </div>
-
-  ${nikoExtra}
-  ${histHtml}
-
+  ${gearCard ? `<div class="sec"><div class="sec-h"><b>外设与设置</b><i></i><em>Liquipedia</em></div>${gearCard}</div>` : ''}
+  ${xCard}
   <div class="links">
-    <a class="lk" href="${esc(p.url||'#')}" target="_blank" rel="noopener">Liquipedia 资料页 ↗</a>
+    <a class="lk" href="${esc(p.url || '#')}" target="_blank" rel="noopener">Liquipedia 资料页 ↗</a>
     <a class="lk" href="index.html">返回首页</a>
   </div>
-
   <div class="syncbar"><span id="liveStatus">○ 正在获取最新数据…</span></div>
-  <div class="foot">选手资料抓取自 Liquipedia（CC BY-SA 3.0）。最近更新：__UPDATED__</div>`;
+  <div class="foot">选手资料与官方照片抓取自 Liquipedia（CC BY-SA 3.0）。最近更新：__UPDATED__</div>
+  ${isNiko ? plbHtml() : ''}`;
 
-  if(isNiko) drawCrosshair(x);
+  if(isNiko){ drawCrosshair(x); bindPhotos(); }
 }
 
-async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
+async function boot(){
+  await Promise.all([pullPhotos(), pullNewest()]);
+  render();
+  sync(document.getElementById('liveStatus'));
+}
 """
 
 EVENT_JS = CORE_JS + r"""
@@ -1697,6 +1988,8 @@ boot();
                 .replace("__MAPBG__", json.dumps(MAP_BG, ensure_ascii=False,
                                                  separators=(",", ":")).replace("</", "<\\/"))
                 .replace("__EVENT__", json.dumps(EVENT_DATA, ensure_ascii=False,
+                                                 separators=(",", ":")).replace("</", "<\\/"))
+                .replace("__PHOTOS__", json.dumps(PHOTOS, ensure_ascii=False,
                                                  separators=(",", ":")).replace("</", "<\\/")))
 
 
@@ -1708,6 +2001,8 @@ def main():
     mapbg_json = json.dumps(MAP_BG, ensure_ascii=False, separators=(",", ":")) \
         .replace("</", "<\\/")
     event_json = json.dumps(EVENT_DATA, ensure_ascii=False, separators=(",", ":")) \
+        .replace("</", "<\\/")
+    photos_json = json.dumps(PHOTOS, ensure_ascii=False, separators=(",", ":")) \
         .replace("</", "<\\/")
     built = []
     for fname, pid, title, js, desc in PAGES:
@@ -1748,7 +2043,8 @@ def main():
 <script id="niko-data" type="application/json">{payload}</script>
 <script>
 {js.replace("__REPO__", REPO).replace("__UPDATED__", updated)
-   .replace("__MAPBG__", mapbg_json).replace("__EVENT__", event_json)}
+   .replace("__MAPBG__", mapbg_json).replace("__EVENT__", event_json)
+   .replace("__PHOTOS__", photos_json)}
 render();
 boot();
 </script>
