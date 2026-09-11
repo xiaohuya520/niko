@@ -158,6 +158,19 @@ static lv_obj_t *label_w(lv_obj_t *parent, int x, int y, int w, const char *txt,
     return l;
 }
 
+// 定宽 + 定高 + 超长自动省略号。
+// 中英文混排按“字符数”手工截断会截出“BLAST 世..”这种难看的结果,
+// 交给 LVGL 按真实字宽(LV_LABEL_LONG_DOT)处理更准。
+static lv_obj_t *label_fit(lv_obj_t *parent, int x, int y, int w, int h,
+                           const char *txt, const lv_font_t *font, uint32_t color,
+                           lv_text_align_t al)
+{
+    lv_obj_t *l = label_w(parent, x, y, w, txt, font, color, al);
+    lv_obj_set_height(l, h);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+    return l;
+}
+
 // 按"字符数"截断 UTF-8,超出补 ".."(中文也不会被切断成乱码)
 static void trunc_u8(char *dst, size_t cap, const char *src, int max_chars)
 {
@@ -254,7 +267,7 @@ static void update_sbar(void)
     default:                wtxt = "未联网"; wcol = C_DIM2; break;
     }
     char wbuf[32];
-    trunc_u8(wbuf, sizeof(wbuf), wtxt, 4);
+    scpy(wbuf, sizeof(wbuf), wtxt);
     lv_label_set_text(s_lbl_wifi, wbuf);
     lv_obj_set_style_text_color(s_lbl_wifi, lv_color_hex(wcol), 0);
     lv_obj_set_style_bg_color(s_net_dot, lv_color_hex(wcol), 0);
@@ -285,8 +298,8 @@ static void build_sbar(void)
     lv_obj_t *sbar = box(s_scr, 0, 0, SCREEN_W, SBAR_H, C_CARD2, 0);
 
     s_net_dot  = box(sbar, 6, 8, 6, 6, C_DIM2, 3);
-    s_lbl_wifi = label_w(sbar, 15, 0, 78, "未联网", &font_cn16, C_DIM2, LV_TEXT_ALIGN_LEFT);
-    lv_obj_set_height(s_lbl_wifi, SBAR_H);
+    s_lbl_wifi = label_fit(sbar, 15, 0, 78, SBAR_H, "未联网", &font_cn16, C_DIM2,
+                           LV_TEXT_ALIGN_LEFT);
 
     lv_obj_t *tl = label_w(sbar, 0, 0, 46, "--:--", &font_cn16, C_TEXT, LV_TEXT_ALIGN_CENTER);
     lv_obj_set_height(tl, SBAR_H);
@@ -433,30 +446,31 @@ static void build_live(void)
     if (upcoming) snprintf(sc, sizeof(sc), "VS");
     else          snprintf(sc, sizeof(sc), "%d : %d", m->score1 % 100, m->score2 % 100);
     lv_obj_t *sl = label(card, sc, &lv_font_montserrat_28, C_TEXT);
-    lv_obj_align(sl, LV_ALIGN_TOP_MID, 0, 18);
+    lv_obj_align(sl, LV_ALIGN_TOP_MID, 0, 16);
 
-    lv_obj_t *stl = label(card, status_cn(m->status), &font_cn16, status_color(m->status));
+    // 状态与赛制合成一行:卡片中间可用区只有队标之间那 ~100px,
+    // 分两行会和队名(两侧 y=60 起)挤在一起。
+    char stbuf[24];
+    if (m->bo[0]) snprintf(stbuf, sizeof(stbuf), "%s %s", status_cn(m->status), m->bo);
+    else          scpy(stbuf, sizeof(stbuf), status_cn(m->status));
+    lv_obj_t *stl = label(card, stbuf, &font_cn16, status_color(m->status));
     lv_obj_align(stl, LV_ALIGN_TOP_MID, 0, 50);
 
-    if (m->bo[0]) {
-        lv_obj_t *bl = label(card, m->bo, &lv_font_montserrat_14, C_DIM2);
-        lv_obj_align(bl, LV_ALIGN_TOP_MID, 0, 80);
-    }
-
+    // 页码放卡片底部居中:队标(x<60 / x>164)与两侧队名都不占这块
     char pc[32];
     snprintf(pc, sizeof(pc), "%d/%d", (s_live_sel + 1) % 1000, s_live_n % 1000);
     lv_obj_t *pl = label(card, pc, &lv_font_montserrat_14, C_DIM2);
-    lv_obj_align(pl, LV_ALIGN_TOP_RIGHT, -8, 4);
-    if (m->stage[0]) {
-        char sg[24];
-        trunc_u8(sg, sizeof(sg), m->stage, 6);
-        lv_obj_t *sgl = label(card, sg, &font_cn16, C_DIM2);
-        lv_obj_align(sgl, LV_ALIGN_TOP_LEFT, 8, 4);
-    }
+    lv_obj_align(pl, LV_ALIGN_BOTTOM_MID, 0, -3);
 
     // ---- 逐图比分 ----
     lv_obj_t *maps = box(s_body, 8, 144, 224, 118, C_CARD, 8);
     label_at(maps, 10, 6, "地图比分", &font_cn16, C_DIM2);
+    if (m->stage[0]) {
+        char sg[24];
+        trunc_u8(sg, sizeof(sg), m->stage, 6);
+        lv_obj_t *sgl = label(maps, sg, &font_cn16, C_DIM2);
+        lv_obj_align(sgl, LV_ALIGN_TOP_RIGHT, -10, 6);
+    }
 
     if (m->map_count == 0) {
         label_at(maps, 76, 60, "地图待定", &font_cn16, C_DIM2);
