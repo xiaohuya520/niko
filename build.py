@@ -10,6 +10,20 @@ DATA = json.loads((ROOT / "data.json").read_text(encoding="utf-8"))
 _gh = ROOT / "github"
 REPO = (ROOT / "repo.txt").read_text(encoding="utf-8").strip() or "__REPO__"
 
+# 真实地图背景（由 make_map_bg.py 产出：地图名 -> {f: 图片路径, l: LQIP data URI}）
+MAP_BG = {}
+try:
+    MAP_BG = json.loads((ROOT / "assets" / "maps" / "index.json").read_text(encoding="utf-8"))
+except Exception:
+    pass
+
+# 赛事中心数据（由 fetch_event.py 产出）
+EVENT_DATA = {}
+try:
+    EVENT_DATA = json.loads((ROOT / "event.json").read_text(encoding="utf-8"))
+except Exception:
+    pass
+
 CSS = r"""/* ========== NiKo 赛事跟踪 · 视觉升级（正规 + 设计感）========== */
 :root{
   --bg:#ECEAF8;
@@ -370,6 +384,152 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
   *{transition-duration:.01ms!important}
 }
 
+/* ========== 真实地图背景（历史战绩里每张地图用该地图实景图） ========== */
+.map.has-bg{--mimg:none;--mlqip:none;background:#0E1024;border-color:rgba(255,255,255,.14);isolation:isolate}
+/* 四层背景（从上到下）：竖向压暗 → 横向压暗(左重右轻，文字在左) → 地图实景 → 模糊占位 */
+.map.has-bg::before{content:'';position:absolute;inset:0;z-index:0;
+  background-image:
+    linear-gradient(180deg,rgba(5,7,18,.34) 0%,rgba(5,7,18,.26) 45%,rgba(5,7,18,.52) 100%),
+    linear-gradient(96deg,rgba(5,7,18,.52) 0%,rgba(5,7,18,.16) 58%,rgba(5,7,18,.04) 100%),
+    var(--mimg),
+    var(--mlqip);
+  background-size:cover,cover,cover,cover;
+  background-position:center,center,center,center;
+  background-repeat:no-repeat;
+  filter:saturate(1.08) contrast(1.04);
+  transform:scale(1.03);transition:transform .85s cubic-bezier(.2,.7,.3,1)}
+.map.has-bg:hover::before{transform:scale(1.11)}
+.map.has-bg>*{position:relative;z-index:1}
+.map.has-bg .map-h b{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9),0 2px 18px rgba(0,0,0,.7)}
+.map.has-bg .map-h em{background:rgba(8,10,22,.55);color:rgba(255,255,255,.95);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.map.has-bg .map-en{color:rgba(255,255,255,.72);text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.map.has-bg .mline .who{color:rgba(255,255,255,.9);text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.map.has-bg .mline .rounds{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.9)}
+.map.has-bg .mline .halves{color:rgba(255,255,255,.8);text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.map.has-bg .mline .tbar{background:rgba(255,255,255,.22);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.map.has-bg .map-res{box-shadow:0 1px 10px rgba(0,0,0,.5)}
+.map.has-bg.veto{opacity:.72}
+.map.has-bg.veto::before{filter:grayscale(.92) brightness(.72)}
+.map.has-bg .mbg-en{position:absolute;right:12px;bottom:-8px;z-index:0;font-family:var(--tech);
+  font-weight:700;font-size:52px;letter-spacing:.08em;line-height:1;color:rgba(255,255,255,.13);
+  text-shadow:0 2px 10px rgba(0,0,0,.5);
+  text-transform:uppercase;pointer-events:none;user-select:none;white-space:nowrap}
+@media(max-width:440px){.map.has-bg .mbg-en{font-size:36px;right:10px}}
+
+/* ========== 赛事中心（当前赛事 / 分组 / 分支图 / 实时比分） ========== */
+.ev-tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ev-tabs::-webkit-scrollbar{display:none}
+.ev-tab{flex:none;padding:9px 15px;border-radius:14px;border:1px solid var(--line);background:var(--panel);
+  cursor:pointer;transition:transform .2s,box-shadow .26s,background .26s;text-align:left}
+.ev-tab b{display:block;font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+.ev-tab small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink2);letter-spacing:.05em;margin-top:1px}
+.ev-tab.on{background:var(--grad);border-color:transparent;box-shadow:var(--glow)}
+.ev-tab.on b{color:#fff}
+.ev-tab.on small{color:rgba(255,255,255,.82)}
+
+.ev-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:18px;
+  box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.ev-card::after{content:'';position:absolute;inset:0 0 auto 0;height:4px;background:var(--grad)}
+.ev-top{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.ev-name{font-family:var(--display);font-weight:700;font-size:23px;line-height:1.3}
+.ev-badge{margin-left:auto;display:flex;gap:6px;flex:none;flex-wrap:wrap}
+.ev-b{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:4px 10px;border-radius:999px;font-weight:600}
+/* 注意：状态类必须带前缀（s-），否则会和已有的 .up{display:grid}（未来赛程网格）撞车 */
+.ev-b.s-live{background:var(--loss);color:#fff;animation:evpulse 1.7s infinite}
+.ev-b.s-up{background:var(--amber-bg);color:var(--amber)}
+.ev-b.s-done{background:var(--panel3);color:var(--ink2)}
+.ev-b.gold{background:linear-gradient(120deg,#F6C86E,#E39A2E);color:#3A2A05}
+@keyframes evpulse{0%,100%{box-shadow:0 0 0 0 rgba(240,86,110,.5)}50%{box-shadow:0 0 0 8px rgba(240,86,110,0)}}
+.ev-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:14px}
+.ev-mi{background:var(--panel2);border-radius:13px;padding:9px 12px}
+.ev-mi span{display:block;font-size:10.5px;color:var(--ink2);letter-spacing:.06em}
+.ev-mi b{display:block;font-family:var(--tech);font-size:16px;font-weight:700;color:var(--ink);margin-top:1px}
+.ev-fmt{margin-top:12px;font-size:13.5px;color:var(--ink2);line-height:1.7;
+  border-left:3px solid var(--line-soft);padding-left:11px}
+.ev-cta{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:10px 16px;border-radius:14px;
+  background:var(--grad);color:#fff;font-size:14px;font-weight:700;box-shadow:var(--shadow-md);transition:transform .2s}
+.ev-cta:active{transform:scale(.97)}
+.ev-count{display:flex;gap:8px;margin-top:14px}
+.ev-cd{flex:1;text-align:center;background:var(--grad-soft);border-radius:14px;padding:9px 4px;border:1px solid var(--line)}
+.ev-cd b{display:block;font-family:var(--tech);font-weight:700;font-size:26px;line-height:1.15;color:var(--ink)}
+.ev-cd span{font-size:10px;color:var(--ink2);letter-spacing:.08em}
+
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:9px}
+.tm{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:13px;padding:8px 9px;box-shadow:var(--shadow-sm);overflow:hidden}
+.tm.hl{border-color:rgba(91,92,230,.5);background:var(--grad-soft);box-shadow:var(--glow)}
+.tm img{width:22px;height:24px;object-fit:contain;flex:none}
+.tm em{font-style:normal;font-size:12.5px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm .mono{font-family:var(--tech);font-size:15px;font-weight:700;color:var(--ink2)}
+
+.brk-wrap{overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.brk-wrap::-webkit-scrollbar{display:none}
+.brk{display:flex;gap:14px;min-width:max-content;align-items:stretch}
+.brk-r{display:flex;flex-direction:column;min-width:190px}
+.brk-rb{display:flex;flex-direction:column;justify-content:space-around;gap:9px;flex:1}
+.brk-rt{font-family:var(--display);font-size:12.5px;font-weight:700;color:var(--ink2);
+  letter-spacing:.04em;padding-left:2px;margin-bottom:7px;flex:none}
+.brk-m{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;
+  box-shadow:var(--shadow-sm);transition:transform .22s,box-shadow .26s}
+.brk-m:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.brk-m.live{border-color:var(--loss);box-shadow:0 0 0 2px rgba(240,86,110,.22)}
+.brk-o{display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:13px}
+.brk-o+.brk-o{border-top:1px solid var(--line)}
+.brk-o img{width:17px;height:19px;object-fit:contain;flex:none}
+.brk-o em{font-style:normal;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+.brk-o s{text-decoration:none;font-family:var(--tech);font-weight:700;font-size:15px;color:var(--ink2)}
+.brk-o.w em{color:var(--ink);font-weight:700}
+.brk-o.w s{color:var(--win)}
+.brk-o.l s{color:var(--dim)}
+.brk-mt{font-family:var(--mono);font-size:10px;color:var(--dim);padding:4px 10px;
+  background:var(--panel2);letter-spacing:.04em;display:flex;gap:8px;align-items:center}
+.brk-mt i{font-style:normal;color:var(--loss);font-weight:700;margin-left:auto}
+
+.sch-d{font-family:var(--display);font-size:13px;font-weight:700;color:var(--ink2);margin:14px 0 7px}
+.sch{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:9px 12px;margin-bottom:7px;box-shadow:var(--shadow-sm)}
+.sch.live{border-color:var(--loss)}
+.sch .t{font-family:var(--tech);font-size:14px;font-weight:700;color:var(--ink2);flex:none;width:44px}
+.sch .n{flex:1;font-size:13.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sch .n b{font-weight:700}
+.sch .s{font-family:var(--tech);font-weight:700;font-size:15px;flex:none}
+.sch .q{font-family:var(--mono);font-size:10px;color:var(--dim);flex:none}
+.tag-live{font-family:var(--mono);font-size:10px;font-weight:700;color:#fff;
+  background:var(--loss);padding:2px 7px;border-radius:999px}
+
+.tbl-wrap{overflow-x:auto;border-radius:16px}
+.tbl{width:100%;border-collapse:collapse;background:var(--panel);border-radius:16px;overflow:hidden;
+  box-shadow:var(--shadow-sm);font-size:13.5px}
+.tbl th,.tbl td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink2);
+  background:var(--panel2);font-weight:600}
+.tbl td{color:var(--ink)}
+.tbl td.rk{width:34px;font-family:var(--tech);font-weight:700;color:var(--ink2)}
+.tbl tbody tr:last-child td{border-bottom:0}
+
+/* === 首页：当前赛事入口 === */
+.hero-link{display:block;cursor:pointer}
+.hero-cta{margin-top:14px;display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:13px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;
+  font-size:13.5px;font-weight:700;transition:background .24s,transform .2s}
+.hero-cta span{font-family:var(--mono);opacity:.85}
+.hero-link:hover .hero-cta{background:rgba(255,255,255,.28)}
+.hero-link:active .hero-cta{transform:scale(.97)}
+.ev-list{display:flex;flex-direction:column;gap:10px}
+.ev-e{display:block;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px;
+  box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:transform .22s,box-shadow .26s}
+.ev-e::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--grad)}
+.ev-e:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.ev-e-h{display:flex;align-items:center;gap:9px}
+.ev-e-h b{font-family:var(--display);font-size:16px;font-weight:700;color:var(--ink)}
+.ev-e-h .ev-b{margin-left:auto}
+.ev-e-m{font-size:13px;color:var(--ink2);margin-top:2px}
+.ev-e-d{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:5px;letter-spacing:.03em}
+.ev-e-f{display:flex;gap:14px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.ev-e-go{margin-top:9px;font-size:12.5px;font-weight:700;color:var(--amber)}
+
 /* 移动端微调 */
 @media(max-width:380px){
   .hud-in{padding:10px 12px;gap:9px}
@@ -500,6 +660,90 @@ function avatar(src, name, cls){
 }
 function dataOf(){ return FRESH || D; }
 
+/* ===== 真实地图背景 =====
+   每张历史比分里的地图，用「同一张地图」的实景图做背景。
+   --mimg  真实高清图（直接内联写死，不依赖 JS，保证一定显示）
+   --mlqip 16px 模糊占位图（垫在真图下面，真图没下载完时不闪白） */
+const MAP_BG = __MAPBG__;
+/* 兜底：万一某张卡是动态插入的，再补一次真图（幂等，不会出错） */
+function applyMapBg(el){
+  const info = MAP_BG[el.getAttribute('data-map')];
+  if(info && info.f && !el.style.getPropertyValue('--mimg'))
+    el.style.setProperty('--mimg', "url('" + info.f + "')");
+}
+function lazyMapBg(){
+  const els = document.querySelectorAll('.map.has-bg[data-map]');
+  els.forEach(applyMapBg);
+}
+/* 注意：class 必须并进已有的 class 属性里（HTML 只认第一个 class），
+   所以这里只返回 data-map / style，has-bg 由 mapBgCls 追加。 */
+function mapBgCls(map){ return MAP_BG[map] ? ' has-bg' : ''; }
+function mapBgAttr(map, extraStyle){
+  const info = MAP_BG[map];
+  if(!info) return extraStyle ? ` style="${extraStyle}"` : '';
+  const dm = ` data-map="${esc(map)}"`;
+  let s = `--mimg:url('${info.f}');--mlqip:url('${info.l}')`;
+  if(extraStyle) s += ';' + extraStyle;
+  return dm + ` style="${s}"`;
+}
+
+/* ===== 赛事中心数据（含实时刷新） ===== */
+let EV = __EVENT__;
+let EV_FRESH = null;
+function evData(){ return EV_FRESH || EV; }
+async function pullEvent(){
+  const urls = [];
+  if(REPO && REPO !== '__REPO__'){
+    urls.push(['https://cdn.jsdelivr.net/gh/' + REPO + '@main/event.json', 'jsDelivr']);
+    urls.push(['https://raw.githubusercontent.com/' + REPO + '/main/event.json', 'GitHub 直连']);
+  }
+  urls.push(['./event.json', '同源']);
+  for(const [u, tag] of urls){
+    try{
+      const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'});
+      if(!r.ok) continue;
+      const d = await r.json();
+      if(d && d.events){ return {data:d, tag}; }
+    }catch(e){}
+  }
+  return null;
+}
+
+/* ===== 赛事中心的通用工具（首页与赛事页共用） ===== */
+const ROUND_ZH = {
+  'Quarterfinals':'四分之一决赛','Semifinals':'半决赛','Grand Final':'总决赛','Final':'决赛',
+  'Upper Bracket Quarterfinals':'胜者组 首轮','Upper Bracket Semifinals':'胜者组 半决赛',
+  'Upper Bracket Final':'胜者组 决赛','Lower Bracket Quarterfinals':'败者组 首轮',
+  'Lower Bracket Semifinals':'败者组 半决赛','Lower Bracket Final':'败者组 决赛',
+  'Round 1':'第 1 轮','Round 2':'第 2 轮','Round 3':'第 3 轮','Round 4':'第 4 轮','Round 5':'第 5 轮',
+  'Playoffs':'淘汰赛','Results':'淘汰赛','Group A':'A 组','Group B':'B 组','Group C':'C 组','Group D':'D 组'
+};
+function zhRound(n){ return ROUND_ZH[n] || n; }
+function isPlayoff(t){ return /playoff|results|final|淘汰/i.test(t || ''); }
+function bjHM(ts){
+  const d = new Date(ts * 1000 + 8 * 3600 * 1000), p = n => String(n).padStart(2, '0');
+  return p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
+}
+function bjDayLabel(ts){
+  const d = new Date(ts * 1000 + 8 * 3600 * 1000);
+  return (d.getUTCMonth() + 1) + ' 月 ' + d.getUTCDate() + ' 日 · 周'
+    + '日一二三四五六'[d.getUTCDay()];
+}
+/* 粗略判定「正在打」：开赛时间已过、且仍在 3.2 小时内 */
+function isLive(ts){
+  if(!ts) return false;
+  const now = Date.now() / 1000;
+  return ts <= now && now < ts + 3.2 * 3600;
+}
+function statusCn(s){ return s === 'live' ? '进行中' : s === 'done' ? '已结束' : '即将开始'; }
+function statusCls(s){ return s === 'live' ? 's-live' : s === 'done' ? 's-done' : 's-up'; }
+function brkCount(e){ return (e.brackets || []).reduce((a, b) => a + (b.count || 0), 0); }
+function featuredEvent(){
+  const d = evData(), EVS = d.events || [];
+  if(!EVS.length) return null;
+  return EVS.find(x => x.id === (d.featured && d.featured.id)) || EVS[0];
+}
+
 async function pullNewest(){
   const urls = [];
   if(REPO && REPO !== '__REPO__'){
@@ -592,6 +836,27 @@ function matchRow(m, maxR){
   </a>`;
 }
 
+/* 赛事中心入口：当前/下一站 + 最近赛事 */
+function evEntry(){
+  const EVS = (evData().events || []);
+  if(!EVS.length) return '';
+  const cards = EVS.map(e => {
+    const n = brkCount(e);
+    return `<a class="ev-e" href="event.html?id=${encodeURIComponent(e.id)}">
+      <div class="ev-e-h"><b>${esc(e.short || e.name)}</b>
+        <span class="ev-b ${statusCls(e.status)}">${statusCn(e.status)}</span></div>
+      <div class="ev-e-m">${esc(e.name)}</div>
+      <div class="ev-e-d">${esc(e.date_text || '')} · ${esc(tierText(e.tier))}${e.prize ? ' · ' + esc(e.prize) : ''}</div>
+      <div class="ev-e-f"><span>${n ? n + ' 场对阵' : '对阵待公布'}</span><span>${(e.teams || []).length} 支队伍</span></div>
+      <div class="ev-e-go">进入赛事中心 ›</div>
+    </a>`;
+  }).join('');
+  return `<div class="sec">
+    <div class="sec-h"><b>赛事中心</b><i></i><em>赛程 · 分组 · 分支图 · 实时比分</em></div>
+    <div class="ev-list">${cards}</div>
+  </div>`;
+}
+
 function render(){
   const d = dataOf(), P = d.player, YS = d.year_stats, LIST = d.recent_matches, SQ = d.squad || [];
   const c = P.career || {}, g = P.gear || {}, x = P.crosshair || {};
@@ -671,8 +936,14 @@ function render(){
       <div class="kv-row"><span>分享码</span><b style="font-family:var(--mono);font-size:11px">${esc(P.crosshair_sharecode||'—')}</b></div>
     </div>` : '<div class="empty">暂无准星数据</div>';
 
+  const FE = featuredEvent();
+  const heroOpen = FE
+    ? `<a class="hero hero-link" href="event.html?id=${encodeURIComponent(FE.id)}">`
+    : '<div class="hero">';
+  const heroClose = FE ? '</a>' : '</div>';
+
   document.getElementById('app').innerHTML = `
-  <div class="hero">
+  ${heroOpen}
     <div class="hero-top"><span class="tag">${heroTag}</span></div>
     <div class="hero-body">
       ${heroInner}
@@ -683,8 +954,11 @@ function render(){
         <div><b id="cdS">--</b><span>秒</span></div>
       </div>
       <div class="hero-sub">${target ? '开赛（北京时间）：' + bj(target) : ''}</div>
+      ${FE ? `<div class="hero-cta">进入赛事中心 · 赛程 / 分组 / 分支图<span>›</span></div>` : ''}
     </div>
-  </div>
+  ${heroClose}
+
+  ${evEntry()}
 
   <a class="prof" href="player.html?id=${encodeURIComponent(P.nick)}">
     ${avatar(P.photo, P.nick, 'xl')}
@@ -905,7 +1179,8 @@ function render(){
   const mapHtml = played.map((p, i) => {
     const fw = p.falcons_win;
     const fr = Number(p.falcons.rounds)||0, orr = Number(p.opponent.rounds)||0;
-    return `<div class="map ${fw ? 'W' : 'L'}">
+    return `<div class="map ${fw ? 'W' : 'L'}${mapBgCls(p.map)}"${mapBgAttr(p.map)}>
+      <span class="mbg-en">${esc(p.map)}</span>
       <div class="map-h">
         <b>第 ${i+1} 图 · ${mapName(p.map)}</b>
         <em>${fr + orr > 24 ? '加时 · ' : ''}共 ${fr + orr} 回合</em>
@@ -930,7 +1205,7 @@ function render(){
     <div class="sec">
       <div class="sec-h"><b>未选用地图</b><i></i><em>双方已禁用</em></div>
       <div class="rows">${vetoed.map(p => `
-        <div class="map veto" style="margin-bottom:0">
+        <div class="map veto${mapBgCls(p.map)}"${mapBgAttr(p.map, 'margin-bottom:0')}>
           <div class="map-h"><b>${mapName(p.map)}</b><em>Bo${(m.maps||[]).length>3?3:1} 未启用</em></div>
         </div>`).join('')}</div>
     </div>` : '';
@@ -985,8 +1260,9 @@ function render(){
   <div class="syncbar"><span id="liveStatus">○ 正在获取最新数据…</span></div>
   <div class="foot">
     地图回合按「进攻方 / 防守方」拆分；加时回合不计入该项统计。<br>
-    数据来源：Liquipedia（CC BY-SA 3.0）。最近更新：__UPDATED__
+    地图背景为该地图的游戏内实景（Liquipedia，CC BY-SA 3.0）。最近更新：__UPDATED__
   </div>`;
+  lazyMapBg();
 }
 
 async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
@@ -1146,9 +1422,225 @@ function render(){
 async function boot(){ await pullNewest(); render(); sync(document.getElementById('liveStatus')); }
 """
 
+EVENT_JS = CORE_JS + r"""
+let CUR = null;
+
+function teamChip(name, TM){
+  if(!name) return '<em>待定</em>';
+  const logo = TM[name];
+  const img = logo ? `<img src="${esc(logo)}" alt="" loading="lazy">` : '';
+  return img + '<em>' + esc(name) + '</em>';
+}
+
+function evTabs(EVS){
+  return EVS.map(e => {
+    const on = e.id === CUR ? ' on' : '';
+    return `<button class="ev-tab${on}" data-ev="${esc(e.id)}">
+      <b>${esc(e.short || e.name)}</b>
+      <small>${e.tag === 'next' ? '下一站' : '已结束'} · ${esc(e.date_text || '')}</small>
+    </button>`;
+  }).join('');
+}
+
+function evCard(e){
+  const meta = [
+    ['赛程日期', e.date_text || '—'],
+    ['赛事等级', tierText(e.tier) || '—'],
+    ['奖池', e.prize || '—'],
+    ['参赛队伍', (e.teams || []).length ? (e.teams.length + ' 支') : '待公布']
+  ].map(([k, v]) => `<div class="ev-mi"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+  const cd = (e.status === 'upcoming' && e.start) ? `<div class="ev-count" id="evCount">
+      <div class="ev-cd"><b id="cdD">–</b><span>天</span></div>
+      <div class="ev-cd"><b id="cdH">–</b><span>小时</span></div>
+      <div class="ev-cd"><b id="cdM">–</b><span>分钟</span></div>
+      <div class="ev-cd"><b id="cdS">–</b><span>秒</span></div>
+    </div>` : '';
+  return `<div class="ev-card">
+    <div class="ev-top">
+      <div class="ev-name">${esc(e.name)}</div>
+      <div class="ev-badge">
+        <span class="ev-b gold">${esc(tierText(e.tier) || 'S 级')}</span>
+        <span class="ev-b ${statusCls(e.status)}">${statusCn(e.status)}</span>
+      </div>
+    </div>
+    <div class="ev-meta">${meta}</div>
+    ${e.format ? `<div class="ev-fmt">${esc(e.format)}</div>` : ''}
+    ${cd}
+    <a class="ev-cta" href="${esc(e.source)}" target="_blank" rel="noopener">Liquipedia 赛事页 ↗</a>
+  </div>`;
+}
+
+function teamsSec(e){
+  const ts = e.teams || [];
+  if(!ts.length) return '';
+  const list = ts.map(t => {
+    const hl = /falcons/i.test(t.name) ? ' hl' : '';
+    const img = t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy">`
+                       : `<span class="mono">${ini(t.name)}</span>`;
+    return `<div class="tm${hl}">${img}<em>${esc(t.name)}</em></div>`;
+  }).join('');
+  return `<div class="sec">
+    <div class="sec-h"><b>参赛队伍</b><i></i><em>${ts.length} 支</em></div>
+    <div class="teams">${list}</div>
+  </div>`;
+}
+
+function groupsSec(e){
+  const gs = e.groups || [];
+  if(!gs.length) return '';
+  return gs.map(g => {
+    const head = (g.cols || []).slice(1, 5).map(c => `<th>${esc(c)}</th>`).join('');
+    const rows = (g.rows || []).map((r, i) => {
+      const nums = (r.nums || []).slice(0, 4).map(v => `<td>${esc(v)}</td>`).join('');
+      const hl = /falcons/i.test(r.team) ? ' style="background:var(--grad-soft)"' : '';
+      return `<tr${hl}><td class="rk">${i + 1}</td><td class="tmc">${esc(r.team)}</td>${nums}</tr>`;
+    }).join('');
+    return `<div class="sec">
+      <div class="sec-h"><b>分组积分</b><i></i><em>${esc(g.title)}</em></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>队伍</th>${head}</tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+  }).join('');
+}
+
+function brkMatch(m, TM){
+  const played = m.a.score !== null || m.b.score !== null;
+  const live = !played && isLive(m.ts);
+  const row = (t, isA) => {
+    let cls = 'brk-o';
+    if(played) cls += t.win ? ' w' : ' l';
+    return `<div class="${cls}">` + teamChip(t.name, TM) +
+      '<s>' + (t.score === null ? '–' : t.score) + '</s></div>';
+  };
+  const tag = live ? '<i>LIVE</i>'
+    : (played ? '' : (m.ts ? '<i style="color:var(--dim);font-weight:600">'
+        + bjHM(m.ts) + '</i>' : ''));
+  return `<div class="brk-m${live ? ' live' : ''}">
+    ${row(m.a, true)}${row(m.b, false)}
+    <div class="brk-mt">${esc(m.bo || '')}${tag}</div>
+  </div>`;
+}
+
+function bracketsSec(e){
+  const bs = (e.brackets || []).filter(b => b.count);
+  if(!bs.length) return `<div class="sec">
+    <div class="sec-h"><b>分支图</b><i></i><em>对阵树</em></div>
+    <div class="empty">分组与对阵尚未公布<br>赛事开赛前会由 Liquipedia 自动补全</div>
+    </div>`;
+  const sorted = bs.slice().sort((a, b) => (isPlayoff(b.title) ? 1 : 0) - (isPlayoff(a.title) ? 1 : 0));
+  return sorted.map(b => {
+    const cols = b.rounds.map(rd => `<div class="brk-r">
+        <div class="brk-rt">${esc(zhRound(rd.name))}</div>
+        <div class="brk-rb">${rd.matches.map(m => brkMatch(m, e._TM)).join('')}</div>
+      </div>`).join('');
+    return `<div class="sec">
+      <div class="sec-h"><b>${esc(zhRound(b.title))}</b><i></i><em>${b.count} 场对阵</em></div>
+      <div class="brk-wrap"><div class="brk">${cols}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function scheduleSec(e){
+  const s = (e.schedule || []).slice().sort((a, b) => a.ts - b.ts);
+  if(!s.length) return `<div class="sec">
+    <div class="sec-h"><b>赛程与实时比分</b><i></i><em>按北京时间</em></div>
+    <div class="empty">赛程尚未公布<br>开赛后这里会显示每场对阵与实时比分</div>
+    </div>`;
+  const days = [];
+  s.forEach(m => {
+    const k = bjDayLabel(m.ts);
+    let last = days[days.length - 1];
+    if(!last || last.k !== k){ last = {k, rows: []}; days.push(last); }
+    last.rows.push(m);
+  });
+  const body = days.map(d => `<div class="sch-d">${esc(d.k)}</div>
+    ${d.rows.map(m => {
+      const played = m.sa !== null && m.sb !== null;
+      const live = !played && isLive(m.ts);
+      const wA = played && m.sa > m.sb;
+      const nA = wA ? '<b>' + esc(m.a) + '</b>' : esc(m.a);
+      const nB = (played && !wA) ? '<b>' + esc(m.b) + '</b>' : esc(m.b);
+      return `<div class="sch${live ? ' live' : ''}">
+        <div class="t">${bjHM(m.ts)}</div>
+        <div class="n">${nA} <span style="color:var(--dim)">vs</span> ${nB}</div>
+        ${live ? '<span class="tag-live">LIVE</span>' : ''}
+        <div class="s">${played ? m.sa + ':' + m.sb : '—'}</div>
+        <div class="q">${esc(m.bo || '')}</div>
+      </div>`;
+    }).join('')}`).join('');
+  return `<div class="sec">
+    <div class="sec-h"><b>赛程与实时比分</b><i></i><em>北京时间 · ${s.length} 场</em></div>
+    ${body}
+  </div>`;
+}
+
+function render(){
+  const data = evData();
+  const EVS = data.events || [];
+  const app = document.getElementById('app');
+  if(!EVS.length){
+    app.innerHTML = `<div class="back"><a class="lk" href="index.html">‹ 返回首页</a></div>
+      <div class="empty" style="margin-top:30px">暂无赛事数据</div>`;
+    return;
+  }
+  const want = params.get('id');
+  if(want && EVS.some(x => x.id === want)) CUR = want;
+  if(!CUR || !EVS.some(x => x.id === CUR))
+    CUR = (data.featured && data.featured.id) || EVS[0].id;
+  const e = EVS.find(x => x.id === CUR);
+  // 队名 -> 队标
+  e._TM = {};
+  (e.teams || []).forEach(t => { e._TM[t.name] = t.logo; });
+
+  app.innerHTML = `
+  <div class="back"><a class="lk" href="index.html">‹ 返回首页</a></div>
+  <div class="sec">
+    <div class="sec-h"><b>赛事中心</b><i></i><em>分组 · 分支图 · 实时比分</em></div>
+    <div class="ev-tabs">${evTabs(EVS)}</div>
+    ${evCard(e)}
+  </div>
+  ${teamsSec(e)}
+  ${groupsSec(e)}
+  ${bracketsSec(e)}
+  ${scheduleSec(e)}
+  <div class="syncbar"><span id="liveStatus">○ 正在获取最新赛事数据…</span></div>
+  <div class="foot">
+    赛事分组、分支图与比分抓取自 Liquipedia（CC BY-SA 3.0），每 60 秒自动同步一次。<br>
+    最近更新：__UPDATED__
+  </div>`;
+
+  app.querySelectorAll('.ev-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      CUR = btn.getAttribute('data-ev');
+      render();
+      history.replaceState(null, '', 'event.html?id=' + encodeURIComponent(CUR));
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  });
+  if(e.status === 'upcoming' && e.start) startCountdown(e.start);
+}
+
+async function boot(){
+  await pullNewest();
+  render();
+  const st = document.getElementById('liveStatus');
+  if(st) st.textContent = '● 赛事数据已载入 · 每 60 秒自动同步';
+  setInterval(async () => {
+    const r = await pullEvent();
+    if(r && evData().updated !== r.data.updated){ EV_FRESH = r.data; render(); }
+    const el = document.getElementById('liveStatus');
+    if(el) el.textContent = r
+      ? '● 已同步（' + r.tag + '）· ' + new Date().toLocaleTimeString('zh-CN')
+      : '○ 离线缓存（未能联网）· ' + new Date().toLocaleTimeString('zh-CN');
+  }, 60000);
+}
+"""
+
 PAGES = [
     ("index.html", "index", "NiKo // 赛事跟踪", INDEX_JS,
      "NiKo（Nikola Kovač）赛事跟踪：Team Falcons 赛程、比分与选手数据"),
+    ("event.html", "event", "赛事中心 // NiKo", EVENT_JS,
+     "当前赛事与最近赛事：分组、分支图、赛程与实时比分"),
     ("match.html", "match", "比赛详情 // NiKo", MATCH_JS, "NiKo 比赛逐图详情"),
     ("team.html", "team", "Team Falcons // 阵容", TEAM_JS, "Team Falcons 现役阵容与选手资料"),
     ("player.html", "player", "选手资料 // NiKo", PLAYER_JS, "NiKo 与队友的选手资料"),
@@ -1201,13 +1693,22 @@ boot();
     return (body.replace("__JS__", js)
                 .replace("__DATA__", json.dumps(DATA, ensure_ascii=False))
                 .replace("__UPDATED__", updated)
-                .replace("__REPO__", REPO))
+                .replace("__REPO__", REPO)
+                .replace("__MAPBG__", json.dumps(MAP_BG, ensure_ascii=False,
+                                                 separators=(",", ":")).replace("</", "<\\/"))
+                .replace("__EVENT__", json.dumps(EVENT_DATA, ensure_ascii=False,
+                                                 separators=(",", ":")).replace("</", "<\\/")))
 
 
 def main():
     payload = json.dumps(DATA, ensure_ascii=False)
     # 内联数据里不能出现 </script>，否则会截断脚本标签
     payload = payload.replace("</script", "<\\/script")
+    # 地图背景 & 赛事数据（同样要防 </script> 截断）
+    mapbg_json = json.dumps(MAP_BG, ensure_ascii=False, separators=(",", ":")) \
+        .replace("</", "<\\/")
+    event_json = json.dumps(EVENT_DATA, ensure_ascii=False, separators=(",", ":")) \
+        .replace("</", "<\\/")
     built = []
     for fname, pid, title, js, desc in PAGES:
         updated = DATA["meta"]["updated"]
@@ -1246,7 +1747,8 @@ def main():
 <div class="wrap" id="app"></div>
 <script id="niko-data" type="application/json">{payload}</script>
 <script>
-{js.replace("__REPO__", REPO).replace("__UPDATED__", updated)}
+{js.replace("__REPO__", REPO).replace("__UPDATED__", updated)
+   .replace("__MAPBG__", mapbg_json).replace("__EVENT__", event_json)}
 render();
 boot();
 </script>
