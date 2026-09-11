@@ -907,6 +907,13 @@ void demo_csboard_enter(void)
     rebuild_filters();
     cs_net_init();
 
+    // 从没配过网的设备(没有保存的凭证)就直接落在配网页上——cs_net_init() 已经自动开了扫描,
+    // 用户不用再找菜单。配过的设备停在看板主菜单,后台自动重连,连上后自动拉数据。
+    if (cs_net_ap_prev_ssid()[0] == 0) {
+        s_ap_sel = 0;
+        s_view = VIEW_WIFI;
+    }
+
     rebuild();
     s_timer = lv_timer_create(tick, 200, NULL);
     lv_screen_load(s_scr);

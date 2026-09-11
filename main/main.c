@@ -30,6 +30,10 @@ static const demo_entry_t DEMOS[] = {
 };
 #define DEMO_COUNT (sizeof(DEMOS) / sizeof(DEMOS[0]))
 
+// 开机进入的页面(CS 看板在 DEMOS[] 中的下标)。
+// 改这里就能换开机首屏:0=Display、4=Wi-Fi、7=CS Board。
+#define DEMO_BOOT_IDX   7
+
 // 各外设初始化结果:失败的项在菜单里标 [FAIL] 且不允许进入。
 static bool s_ok[DEMO_COUNT];
 
@@ -134,7 +138,14 @@ void app_main(void) {
     s_ok[6] = true;
     s_ok[7] = true;                                   // CS Board 页面自包含,无外设依赖
 
-    if (bsp_lvgl_lock(1000)) { enter_menu(); bsp_lvgl_unlock(); }
+    // 开机直奔 CS 看板,不再停在官方 demo 菜单上等用户按 7 下选到它。
+    // 原来的菜单没丢:在 CS 看板里长按 OK 就回到菜单,工厂自检项照样能进去测。
+    if (bsp_lvgl_lock(1000)) {
+        s_active = DEMO_BOOT_IDX;
+        s_sel = DEMO_BOOT_IDX;
+        DEMOS[s_active].enter();
+        bsp_lvgl_unlock();
+    }
 
     ESP_LOGI(TAG, "就绪:Display=%d Button=%d Audio=%d Battery=%d",
              s_ok[0], s_ok[1], s_ok[2], s_ok[3]);

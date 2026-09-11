@@ -6,12 +6,27 @@
 
 | 文件 | 改动 |
 |---|---|
-| `main/demo_csboard.c` | **新增**：CS 看板页面（选手护照 / 赛事 / 积分榜三视图） |
+| `main/demo_csboard.c` | **新增**：CS 看板页面（实时比分 / 近期战绩 / 赛事预告 / 网络设置 四视图 + 三键状态机） |
 | `main/demo.h` | 新增 `demo_csboard_*` 三个函数声明 |
-| `main/main.c` | 菜单 `DEMOS[]` 加 `CS Board` 一项；`s_ok[7]` 标为可用 |
+| `main/main.c` | 菜单 `DEMOS[]` 加 `CS Board` 一项；`s_ok[7]` 标为可用；**`app_main()` 开机直接进 CS 看板** |
 | `main/CMakeLists.txt` | 编译源文件列表加入 `demo_csboard.c` |
 
 其余硬件驱动（`components/bsp`）、分区表、LVGL 配置均沿用原工程，无需改动。
+
+## 一点五、开机落在哪一页（重要）
+
+老版本开机停在 FoloToy 官方 demo 菜单，`CS Board` 是菜单第 8 项 —— 得连按 7 下 DOWN 才选得到，
+看起来就像"没跑起来"。现在 `app_main()` 里改成**开机直奔 CS 看板**：
+
+| 设备状态 | 开机首屏 |
+|---|---|
+| 已配过 Wi-Fi（NVS 有凭证） | CS 看板主菜单（后台自动重连 + 拉数据） |
+| 从没配过 Wi-Fi | 直接进"网络设置"页，且已在扫描周边 AP |
+
+官方那套菜单（Display / Button / Audio / Battery / Wi-Fi / BLE / Low Power）**没删**：
+在 CS 看板里**长按 OK** 就能回到菜单，工厂自检项照样能进。
+
+想换开机首屏 → 改 `main/main.c` 的 `#define DEMO_BOOT_IDX`（0=Display，4=Wi-Fi，7=CS Board）。
 
 ## 二、设备上的三键怎么用
 
