@@ -10,8 +10,10 @@
 // 按键分工:
 //   主菜单 : UP/DOWN 选条目 | OK 单击 进入 | OK 双击 刷新数据
 //   列表页 : UP/DOWN 翻条目 | OK 单击 刷新   | OK 双击 返回主菜单
-//   网络页 : UP/DOWN 选 AP   | OK 单击 连接   | OK 双击 返回主菜单
-//   密码页 : UP/DOWN 选字符 | OK 单击 输入/执行 | OK 双击 返回网络页
+//   网络页 : UP/DOWN 选 AP   | OK 单击 连接   | OK 长按 返回主菜单
+//   密码页 : 短按上/下 选键前进/后退 | 长按上/下 换上/下一行
+//            确定 短按 输入当前键 | 确定 长按 返回网络页
+//            (功能行:模式切换 / 空格 / 删除 / 连接)
 //
 // 注:OK 单击带 ~320ms 延时(等双击判定),避免"双击时先触发一次单击"。
 //
@@ -91,19 +93,27 @@ static cs_fetch_state_t s_last_fetch = (cs_fetch_state_t)-1;
 static int              s_last_ap    = -1;
 static int              s_bat_tick;
 
-// 密码输入
+// 密码输入(完整三键键盘)
 static char s_pass[34];
 static char s_target_ssid[33];
-static int  s_set;                  // 当前字符集
-static int  s_sel;                  // 字符选择器位置
 
-static const char *SETS[] = {
-    "abcdefghijklmnopqrstuvwxyz",
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    "0123456789",
-    ".-_@#!$%&*+=?",
+// 键盘模式:小写 / 大写 / 数字 / 符号
+typedef enum { KB_LOWER = 0, KB_UPPER, KB_NUM, KB_SYM } kb_mode_t;
+static const char *KB_CHARS[4][3] = {
+    { "abcdefghij", "klmnopqrst", "uvwxyz" },   // 小写
+    { "ABCDEFGHIJ", "KLMNOPQRST", "UVWXYZ" },   // 大写
+    { "0123456789", NULL,         NULL     },   // 数字
+    { "!@#$%^&*()", "_-+=.,/:?~", NULL     },   // 符号
 };
-#define SET_COUNT ((int)(sizeof(SETS) / sizeof(SETS[0])))
+static const int KB_ROWS[4] = { 3, 3, 1, 2 };   // 各模式的字符行数(不含底部功能行)
+
+// 底部功能行:模式切换 / 空格 / 删除 / 连接
+typedef enum { FN_SHIFT = 0, FN_SPACE, FN_DEL, FN_CONN } fn_key_t;
+#define KB_FN_COLS 4                            // 功能行列数
+
+static kb_mode_t s_kbmode;   // 当前模式
+static int       s_kb_row;   // 行:0..KB_ROWS[mode](末行为功能行)
+static int       s_kb_col;   // 列:字符行 0..列数-1;功能行 0..3
 
 // 主菜单条目
 static const struct { const char *label; uint32_t acc; } MENU[] = {
@@ -328,8 +338,8 @@ static void update_hint(void)
     case VIEW_LIVE:     h = "上下翻页 确定刷新 双击返回"; break;
     case VIEW_HISTORY:
     case VIEW_UPCOMING: h = "上下翻动 确定刷新 双击返回"; break;
-    case VIEW_WIFI:     h = "上下选择 确定连接 双击返回"; break;
-    default:            h = "上下选字 确定输入 双击返回"; break;
+    case VIEW_WIFI:     h = "上下选择 确定连接 长按返回"; break;
+    default:            h = "上下选键 确定输入 长按返回"; break;
     }
     lv_obj_t *hl = lv_obj_get_child(s_hint, 0);
     if (!hl) hl = label(s_hint, h, &font_cn16, C_DIM);
@@ -635,63 +645,159 @@ static void build_wifi(void)
 }
 
 // ---------------------------------------------------------------------------
-// 视图 6:密码输入(三键)
+// 视图 6:密码输入(完整三键键盘)
 // ---------------------------------------------------------------------------
+// 键盘导航 helper(光标用 (行,列) 表示;末行为功能行)
+static int kb_total_rows(void) { return KB_ROWS[s_kbmode] + 1; }   // 含功能行
+static int kb_row_cols(int r)
+{
+    if (r < KB_ROWS[s_kbmode]) {
+        const char *row = KB_CHARS[s_kbmode][r];
+        return row ? (int)strlen(row) : 0;
+    }
+    return KB_FN_COLS;   // 功能行
+}
+
+// 短按上/下:横向前进/后退;到行尾进下一行,到首行前回末行(线性循环)
+static void kb_move_h(int dir)
+{
+    int R = kb_total_rows();
+    int r = s_kb_row, c = s_kb_col;
+    c += dir;
+    if (c < 0) {
+        r -= 1; if (r < 0) r = R - 1;
+        c = kb_row_cols(r) - 1;
+    } else if (c >= kb_row_cols(r)) {
+        r += 1; if (r >= R) r = 0;
+        c = 0;
+    }
+    s_kb_row = r; s_kb_col = c;
+}
+
+// 长按上/下:纵向换上/下一行(夹在首末行之间,不循环);列夹到该行宽度
+static void kb_move_v(int dir)
+{
+    int R = kb_total_rows();
+    int r = s_kb_row + dir;
+    if (r < 0) r = 0;
+    if (r >= R) r = R - 1;
+    int cols = kb_row_cols(r);
+    if (s_kb_col >= cols) s_kb_col = cols - 1;
+    if (s_kb_col < 0)     s_kb_col = 0;
+    s_kb_row = r;
+}
+
+// 确定短按:激活当前键(输入字符 / 模式切换 / 空格 / 删除 / 连接)
+static void kb_activate(void)
+{
+    if (s_kb_row < KB_ROWS[s_kbmode]) {
+        const char *row = KB_CHARS[s_kbmode][s_kb_row];
+        char ch = row[s_kb_col];
+        size_t pl = strlen(s_pass);
+        if (pl < sizeof(s_pass) - 1) { s_pass[pl] = ch; s_pass[pl + 1] = 0; }
+        rebuild();
+    } else {
+        switch (s_kb_col) {
+        case FN_SHIFT:
+            s_kbmode = (kb_mode_t)((s_kbmode + 1) % 4);
+            s_kb_row = 0; s_kb_col = 0;
+            rebuild();
+            break;
+        case FN_SPACE: {
+            size_t pl = strlen(s_pass);
+            if (pl < sizeof(s_pass) - 1) { s_pass[pl] = ' '; s_pass[pl + 1] = 0; }
+            rebuild();
+            break;
+        }
+        case FN_DEL: {
+            size_t pl = strlen(s_pass);
+            if (pl > 0) s_pass[pl - 1] = 0;
+            rebuild();
+            break;
+        }
+        case FN_CONN:
+            cs_net_connect(s_target_ssid, s_pass);
+            rebuild();
+            break;
+        }
+    }
+}
+
 static void build_pass(void)
 {
-    lv_obj_t *head = box(s_body, 8, 4, 224, 26, C_CARD, 6);
-    label_at(head, 10, 3, "输入无线密码", &font_cn16, C_YEL);
+    // 标题
+    lv_obj_t *head = box(s_body, 8, 4, 224, 24, C_CARD, 6);
+    label_at(head, 10, 2, "输入无线密码", &font_cn16, C_YEL);
 
-    // 目标网络 + 已输入
-    lv_obj_t *card = box(s_body, 8, 36, 224, 78, C_CARD, 6);
-    label_at(card, 10, 2, "目标网络", &font_cn16, C_DIM2);
+    // 信息卡:目标网络 + 已输入(掩码)
+    lv_obj_t *card = box(s_body, 8, 32, 224, 60, C_CARD, 6);
+    label_at(card, 10, 3, "目标网络", &font_cn16, C_DIM2);
     char ss[40];
     trunc_u8(ss, sizeof(ss), s_target_ssid, 12);
-    label_at(card, 10, 24, ss, &font_cn16, C_TEXT);
-
-    char pv[40];
-    trunc_u8(pv, sizeof(pv), s_pass[0] ? s_pass : "尚未输入", 16);
-    label_at(card, 10, 50, pv, &font_cn16, s_pass[0] ? C_TEXT : C_DIM2);
-
-    // 字符选择器
-    lv_obj_t *sel = box(s_body, 8, 122, 224, 100, C_CARD2, 6);
-    lv_obj_set_style_border_width(sel, 1, 0);
-    lv_obj_set_style_border_color(sel, lv_color_hex(C_LINE), 0);
-
-    const char *set = SETS[s_set];
-    int len = (int)strlen(set);
-    char curbuf[12];
-    uint32_t ccol;
-    if (s_sel < len) {
-        snprintf(curbuf, sizeof(curbuf), "%c", set[s_sel]);
-        ccol = C_TEXT;
-    } else if (s_sel == len) {
-        snprintf(curbuf, sizeof(curbuf), "删");
-        ccol = C_RED;
-    } else if (s_sel == len + 1) {
-        snprintf(curbuf, sizeof(curbuf), "换");
-        ccol = C_BLUE;
+    label_at(card, 10, 22, ss, &font_cn16, C_TEXT);
+    label_at(card, 10, 42, "已输入", &font_cn16, C_DIM2);
+    char mask[40];
+    int pl = (int)strlen(s_pass);
+    if (pl == 0) {
+        scpy(mask, sizeof(mask), "尚未输入");
     } else {
-        snprintf(curbuf, sizeof(curbuf), "连");
-        ccol = C_YEL;
+        int k = 0;
+        for (int i = 0; i < pl && k + 1 < (int)sizeof(mask); i++) mask[k++] = '*';
+        mask[k] = 0;
     }
-    lv_obj_t *cv = label(sel, curbuf, &lv_font_montserrat_28, ccol);
-    lv_obj_align(cv, LV_ALIGN_TOP_MID, 0, 14);
+    label_at(card, 56, 42, mask, &font_cn16, pl ? C_TEXT : C_DIM2);
+    char ln[12];
+    snprintf(ln, sizeof(ln), "%d 位", pl % 1000);
+    lv_obj_t *ll = label(card, ln, &font_cn16, C_DIM2);
+    lv_obj_align(ll, LV_ALIGN_RIGHT_MID, -8, 0);
 
-    label_at(sel, 20, 28, "^", &lv_font_montserrat_20, C_DIM2);
-    label_at(sel, 202, 28, "v", &lv_font_montserrat_20, C_DIM2);
+    // 操作提示
+    label_at(s_body, 8, 96, "长按上/下 可上下换行", &font_cn16, C_DIM2);
 
-    static const char *SETNAME[] = { "小写字母", "大写字母", "数字", "符号" };
-    char info[48];
-    snprintf(info, sizeof(info), "%s  %d/%d", SETNAME[s_set], s_set + 1, SET_COUNT);
-    label_w(sel, 0, 70, 224, info, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
+    // 键盘
+    int kx = 10, ky = 112, cell_w = 22, cell_h = 30, step_y = 32;
+    int R = kb_total_rows();
+    static const char *FN_LABEL[KB_FN_COLS] = { NULL, "空格", "删除", "连接" };
+    static const char *MODE_NAME[4] = { "小写", "大写", "数字", "符号" };
+    for (int r = 0; r < R; r++) {
+        int y = ky + r * step_y;
+        int cols = kb_row_cols(r);
+        if (r < KB_ROWS[s_kbmode]) {
+            int row_w = cols * cell_w;
+            int x0 = kx + (224 - row_w) / 2;
+            for (int c = 0; c < cols; c++) {
+                int x = x0 + c * cell_w;
+                bool sel = (r == s_kb_row && c == s_kb_col);
+                lv_obj_t *kc = box(s_body, x, y, cell_w - 1, cell_h - 2,
+                                   sel ? C_BLUE : C_CARD, 4);
+                char buf[2] = { KB_CHARS[s_kbmode][r][c], 0 };
+                lv_obj_t *kl = label(kc, buf, &lv_font_montserrat_20, sel ? C_TEXT : C_DIM);
+                lv_obj_center(kl);
+            }
+        } else {
+            int fw = 53, fg = 4;
+            int x0 = kx + (224 - (KB_FN_COLS * fw + (KB_FN_COLS - 1) * fg)) / 2;
+            for (int c = 0; c < KB_FN_COLS; c++) {
+                int x = x0 + c * (fw + fg);
+                bool sel = (r == s_kb_row && c == s_kb_col);
+                uint32_t fcol = sel ? C_BLUE : C_CARD;
+                if (c == FN_CONN) fcol = sel ? C_GRN : C_CARD;
+                if (c == FN_DEL)  fcol = sel ? C_RED : C_CARD;
+                lv_obj_t *kc = box(s_body, x, y, fw, cell_h - 2, fcol, 6);
+                const char *txt = (c == FN_SHIFT) ? MODE_NAME[s_kbmode] : FN_LABEL[c];
+                uint32_t tcol = sel ? C_TEXT : C_DIM;
+                lv_obj_t *kl = label(kc, txt, &font_cn16, tcol);
+                lv_obj_center(kl);
+            }
+        }
+    }
 
     // 连接结果
     cs_net_state_t st = cs_net_state();
     if (st == CS_NET_CONNECTING) {
-        label_at(s_body, 78, 234, "正在连接...", &font_cn16, C_YEL);
+        label_at(s_body, 70, 244, "正在连接...", &font_cn16, C_YEL);
     } else if (st == CS_NET_FAILED) {
-        label_at(s_body, 58, 234, "连接失败,请核对密码", &font_cn16, C_RED);
+        label_at(s_body, 52, 244, "连接失败,请核对密码", &font_cn16, C_RED);
     }
 }
 
@@ -764,36 +870,12 @@ static void do_ok_single(void)
             // 有密码:先记住目标网络,再进密码页
             scpy(s_target_ssid, sizeof(s_target_ssid), ssid);
             s_pass[0] = 0;
-            s_set = 0;
-            s_sel = 0;
+            s_kbmode = KB_LOWER;
+            s_kb_row = 0;
+            s_kb_col = 0;
             set_view(VIEW_PASS);
         } else {
             cs_net_connect(ssid, "");
-            rebuild();
-        }
-        break;
-    }
-
-    case VIEW_PASS: {
-        const char *set = SETS[s_set];
-        int len = (int)strlen(set);
-        if (s_sel < len) {                       // 输入当前字符
-            size_t pl = strlen(s_pass);
-            if (pl < sizeof(s_pass) - 1) {
-                s_pass[pl] = set[s_sel];
-                s_pass[pl + 1] = 0;
-            }
-            rebuild();
-        } else if (s_sel == len) {               // 删:退格
-            size_t pl = strlen(s_pass);
-            if (pl > 0) s_pass[pl - 1] = 0;
-            rebuild();
-        } else if (s_sel == len + 1) {           // 换:切换字符集
-            s_set = (s_set + 1) % SET_COUNT;
-            s_sel = 0;
-            rebuild();
-        } else {                                 // 连:提交连接
-            cs_net_connect(s_target_ssid, s_pass);
             rebuild();
         }
         break;
@@ -842,6 +924,7 @@ static void tick(lv_timer_t *t)
     if (ns != s_last_net) {
         s_last_net = ns;
         if (s_view == VIEW_WIFI || s_view == VIEW_PASS || s_view == VIEW_MENU) rebuild();
+        if (ns == CS_NET_ONLINE && s_view == VIEW_PASS) set_view(VIEW_MENU);  // 连上即回看板
         if (ns == CS_NET_ONLINE && !s_auto_fetched) {
             s_auto_fetched = true;
             cs_data_fetch_reset();
@@ -886,8 +969,9 @@ void demo_csboard_enter(void)
     s_ap_sel = 0;
     s_pass[0] = 0;
     s_target_ssid[0] = 0;
-    s_set = 0;
-    s_sel = 0;
+    s_kbmode = KB_LOWER;
+    s_kb_row = 0;
+    s_kb_col = 0;
     s_bat_tick = 0;
     s_auto_fetched = false;
     s_last_net = (cs_net_state_t)-1;
@@ -934,6 +1018,25 @@ void demo_csboard_exit(void)
 
 void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
 {
+    // ===== 密码键盘页:独立的完整三键语义 =====
+    //   短按上/下 = 选键前进/后退(横向)   长按上/下 = 换上/下一行(纵向)
+    //   确定 短按 = 输入当前键             确定 长按 = 返回网络列表
+    if (s_view == VIEW_PASS) {
+        if (ev == BSP_BTN_LONG && btn == BSP_BTN_OK) { set_view(VIEW_WIFI); return; }
+        if (ev == BSP_BTN_CLICK && btn == BSP_BTN_OK) { kb_activate(); return; }
+        if (ev == BSP_BTN_CLICK && (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN)) {
+            kb_move_h(btn == BSP_BTN_UP ? 1 : -1);
+            rebuild();
+            return;
+        }
+        if (ev == BSP_BTN_LONG && (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN)) {
+            kb_move_v(btn == BSP_BTN_UP ? -1 : 1);
+            rebuild();
+            return;
+        }
+        return;   // PRESS / DOUBLE 等忽略
+    }
+
     // UP/DOWN 只有单击语义,立即执行(不引入延时,保证手感)
     if (ev == BSP_BTN_CLICK && (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN)) {
         int dir = (btn == BSP_BTN_UP) ? -1 : 1;
@@ -969,17 +1072,21 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
             break;
         }
 
-        default: {
-            int total = (int)strlen(SETS[s_set]) + 3;   // 字符 + 删/换/连
-            s_sel = (s_sel + total + dir) % total;
-            rebuild();
+        default:
             break;
-        }
         }
         return;
     }
 
     if (btn != BSP_BTN_OK) return;
+
+    // 确定 长按:CS Board 内层级返回(由 main.c 转发进来)
+    //   主菜单 -> 回 FoloToy 官方菜单;其它页 -> 回 CS Board 主菜单
+    if (ev == BSP_BTN_LONG) {
+        if (s_view == VIEW_MENU)      folotoy_back_to_menu();
+        else                           set_view(VIEW_MENU);
+        return;
+    }
 
     if (ev == BSP_BTN_CLICK) {
         // 延时 320ms 再执行,给双击判定留窗口

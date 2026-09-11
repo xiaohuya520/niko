@@ -79,15 +79,28 @@ static void enter_menu(void) {
     menu_build();
 }
 
+// 供 CS Board 页面在顶层长按 OK 时调用:退出当前 demo 回到 FoloToy 主菜单。
+void folotoy_back_to_menu(void) {
+    if (s_active >= 0) {
+        DEMOS[s_active].exit();
+        enter_menu();
+    }
+}
+
 // 按键回调运行在 button 组件的任务里,操作 LVGL 必须加锁。
 static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
     (void)user;
     if (!bsp_lvgl_lock(500)) return;
 
     if (s_active >= 0) {
-        if (btn == BSP_BTN_OK && ev == BSP_BTN_LONG) {     // 统一返回
-            DEMOS[s_active].exit();
-            enter_menu();
+        if (btn == BSP_BTN_OK && ev == BSP_BTN_LONG) {
+            if (s_active == DEMO_BOOT_IDX) {
+                // CS Board 自行处理层级返回(密码页->网络页->主菜单->FoloToy菜单)
+                DEMOS[s_active].key(btn, ev);
+            } else {
+                DEMOS[s_active].exit();
+                enter_menu();
+            }
         } else {
             DEMOS[s_active].key(btn, ev);
         }

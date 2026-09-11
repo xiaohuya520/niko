@@ -35,3 +35,6 @@ void demo_low_power_key(bsp_btn_t btn, bsp_btn_ev_t ev);
 
 void demo_csboard_enter(void);  void demo_csboard_exit(void);
 void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev);
+
+// CS Board 在顶层长按 OK 时调用,退出当前页回到 FoloToy 官方主菜单(由 main.c 实现)。
+void folotoy_back_to_menu(void);
