@@ -1,0 +1,108 @@
+{
+  "updated": "2026-09-11 14:30",
+  "matches": [
+    {
+      "event": "BLAST Open Fall",
+      "date": "08/31",
+      "bo": "BO3",
+      "status": "finished",
+      "team1": { "name": "G2", "short": "G2", "color": "#E4AE39" },
+      "team2": { "name": "Aurora", "short": "AUR", "color": "#2AA3EF" },
+      "score1": 2,
+      "score2": 1,
+      "maps": [
+        { "name": "Anubis", "s1": 7, "s2": 13 },
+        { "name": "Inferno", "s1": 19, "s2": 16 },
+        { "name": "Mirage", "s1": 13, "s2": 1 }
+      ]
+    },
+    {
+      "event": "ESL Pro League S21",
+      "date": "09/02",
+      "bo": "BO3",
+      "status": "live",
+      "team1": { "name": "Falcons", "short": "FLC", "color": "#00B36B" },
+      "team2": { "name": "Vitality", "short": "VIT", "color": "#FFD928" },
+      "score1": 1,
+      "score2": 1,
+      "maps": [
+        { "name": "Dust2", "s1": 13, "s2": 9 },
+        { "name": "Nuke", "s1": 8, "s2": 13 },
+        { "name": "Mirage", "s1": 0, "s2": 0 }
+      ]
+    },
+    {
+      "event": "IEM Katowice 2026",
+      "date": "09/05",
+      "bo": "BO3",
+      "status": "upcoming",
+      "team1": { "name": "Spirit", "short": "SPR", "color": "#8C6239" },
+      "team2": { "name": "MOUZ", "short": "MOUZ", "color": "#E43B2F" },
+      "score1": 0,
+      "score2": 0,
+      "maps": []
+    },
+    {
+      "event": "PGL Major Cluj",
+      "date": "09/08",
+      "bo": "BO5",
+      "status": "upcoming",
+      "team1": { "name": "NAVI", "short": "NAVI", "color": "#F2E14C" },
+      "team2": { "name": "FaZe", "short": "FaZe", "color": "#B01C24" },
+      "score1": 0,
+      "score2": 0,
+      "maps": []
+    },
+    {
+      "event": "BLAST Fall Final",
+      "date": "09/12",
+      "bo": "BO3",
+      "status": "upcoming",
+      "team1": { "name": "G2", "short": "G2", "color": "#E4AE39" },
+      "team2": { "name": "NAVI", "short": "NAVI", "color": "#F2E14C" },
+      "score1": 0,
+      "score2": 0,
+      "maps": []
+    },
+    {
+      "event": "ESL Pro League S21",
+      "date": "09/03",
+      "bo": "BO3",
+      "status": "finished",
+      "team1": { "name": "MOUZ", "short": "MOUZ", "color": "#E43B2F" },
+      "team2": { "name": "Astralis", "short": "AST", "color": "#E03A3E" },
+      "score1": 2,
+      "score2": 0,
+      "maps": [
+        { "name": "Nuke", "s1": 13, "s2": 6 },
+        { "name": "Ancient", "s1": 13, "s2": 10 }
+      ]
+    },
+    {
+      "event": "IEM Katowice 2026",
+      "date": "09/06",
+      "bo": "BO3",
+      "status": "upcoming",
+      "team1": { "name": "Vitality", "short": "VIT", "color": "#FFD928" },
+      "team2": { "name": "Spirit", "short": "SPR", "color": "#8C6239" },
+      "score1": 0,
+      "score2": 0,
+      "maps": []
+    },
+    {
+      "event": "BLAST Open Fall",
+      "date": "09/01",
+      "bo": "BO3",
+      "status": "finished",
+      "team1": { "name": "FaZe", "short": "FaZe", "color": "#B01C24" },
+      "team2": { "name": "Falcons", "short": "FLC", "color": "#00B36B" },
+      "score1": 1,
+      "score2": 2,
+      "maps": [
+        { "name": "Inferno", "s1": 13, "s2": 11 },
+        { "name": "Mirage", "s1": 9, "s2": 13 },
+        { "name": "Dust2", "s1": 10, "s2": 13 }
+      ]
+    }
+  ]
+}

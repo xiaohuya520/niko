@@ -22,9 +22,19 @@ CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 CONFIG_LV_COLOR_DEPTH_16=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
+# CS 看板要用到更大字号显示比分/当前字符。
+CONFIG_LV_FONT_MONTSERRAT_24=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# 本 demo UI 简单,24KB 足够;若自建复杂界面出现绘制卡死/看门狗,调大此值。
-CONFIG_LV_MEM_SIZE_KILOBYTES=24
+# CS 看板对象较多(比分卡 + 地图行 + Wi-Fi 列表),32KB 留出余量。
+CONFIG_LV_MEM_SIZE_KILOBYTES=32
+
+# --- HTTPS / 联网数据 ---
+# 数据源走 https(jsDelivr CDN),需要根证书包来做 TLS 校验。
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=y
+# 状态栏要显示北京时间,连上 Wi-Fi 后用 SNTP 同步。
+CONFIG_LWIP_SNTP_MAX_SERVERS=2
 
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000
