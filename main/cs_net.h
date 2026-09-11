@@ -24,7 +24,7 @@
 #define CS_BO_LEN       6
 #define CS_STATUS_LEN   10
 #define CS_TEAM_LEN     20
-#define CS_SHORT_LEN    6
+#define CS_SHORT_LEN    8
 // 队标 id 最长的是 "astralis-talent"(15 字符),留到 24 免得被截断后查不到表
 #define CS_LOGO_LEN     24
 #define CS_MAP_LEN      20
@@ -51,9 +51,11 @@ typedef struct {
     char     bo[CS_BO_LEN];         // BO3
     char     status[CS_STATUS_LEN]; // live / finished / upcoming
     char     t1_name[CS_TEAM_LEN];  // G2 / NAVI ...(真实队名,保持原文)
+    char     t1_short[CS_SHORT_LEN];// 列表窄栏用的短名(可空;空则用 name)
     char     t1_logo[CS_LOGO_LEN];  // 队标 id,对应 cs_logo_get()
     uint32_t t1_color;
     char     t2_name[CS_TEAM_LEN];
+    char     t2_short[CS_SHORT_LEN];
     char     t2_logo[CS_LOGO_LEN];
     uint32_t t2_color;
     int      score1;

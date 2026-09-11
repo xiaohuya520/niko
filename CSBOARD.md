@@ -106,8 +106,8 @@ https://cdn.jsdelivr.net/gh/xiaohuya520/niko@firmware/cs_matches.json
       "date":   "09-11",             // MM-DD
       "time":   "20:00",             // 开赛时间(预告页显示)
       "bo":     "BO3",
-      "team1":  { "name": "G2",  "logo": "g2",  "color": "#E4AE39" },
-      "team2":  { "name": "NAVI","logo": "navi","color": "#F2E14C" },
+      "team1":  { "name": "Virtus.pro", "short": "VP", "logo": "virtuspro", "color": "#F58220" },
+      "team2":  { "name": "MOUZ",       "logo": "mouz",       "color": "#E43B2F" },
       "score1": 1, "score2": 1,
       "maps": [
         { "name": "Inferno", "cn": "炼狱小镇", "s1": 13, "s2": 9 }
@@ -119,8 +119,10 @@ https://cdn.jsdelivr.net/gh/xiaohuya520/niko@firmware/cs_matches.json
 
 * `status` 决定进哪个页面:`live` → 实时比分,`finished` → 近期战绩,`upcoming` → 赛事预告
 * `maps[].cn` 中文图名,留空则回退英文 `name`
+* `team*.short` 可选:列表行只有 62px 宽,`name` 放不下时显示 `short`
+  (如 `Virtus.pro` → `VP`、`GamerLegion` → `GL`;不写则自动用省略号截断)
 * `team*.color` 用于强调色 / 队标缺失时的占位方块
-* 大小上限:JSON ≤ **8KB**(NVS 缓存),单次下载 ≤ **12KB**;建议控制在 7KB 内
+* 大小上限:JSON ≤ **12KB**(NVS 缓存),单次下载也 ≤ **12KB**;建议控制在 10KB 内
 * 数组顺序即显示顺序:建议"进行中 → 已结束(新→旧) → 未开始(近→远)"
 
 ### 断网兜底
@@ -216,7 +218,7 @@ UI 侧 200ms 轮询 `cs_net_state()` / `cs_data_fetch_state()`,状态变化才�
 ## 7. 已知限制
 
 * **仅 2.4GHz** Wi-Fi(C3 硬件限制)
-* JSON 需 ≤ 8KB,否则 NVS 缓存写不进去(仍能正常显示,只是离线时回退到旧数据)
+* JSON 需 ≤ 12KB,否则 NVS 缓存写不进去(仍能正常显示,只是离线时回退到旧数据)
 * 队标为内置白名单(105 支),名单外的战队显示队色方块;新增战队需重编固件
 * 队标与字体占 app 分区约 1MB,余量约 240KB —— 还想大幅扩充名单时,
   应把队标移到独立 data 分区用 `esp_partition_mmap` 读取

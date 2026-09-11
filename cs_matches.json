@@ -9,14 +9,37 @@
       "date": "09-11",
       "time": "20:00",
       "bo": "BO3",
-      "team1": { "name": "G2", "logo": "g2", "color": "#E4AE39" },
-      "team2": { "name": "NAVI", "logo": "navi", "color": "#F2E14C" },
+      "team1": {
+        "name": "G2",
+        "logo": "g2",
+        "color": "#E4AE39"
+      },
+      "team2": {
+        "name": "NAVI",
+        "logo": "navi",
+        "color": "#F2E14C"
+      },
       "score1": 1,
       "score2": 1,
       "maps": [
-        { "name": "Inferno", "cn": "炼狱小镇", "s1": 13, "s2": 9 },
-        { "name": "Nuke", "cn": "核子危机", "s1": 8, "s2": 13 },
-        { "name": "Mirage", "cn": "荒漠迷城", "s1": 0, "s2": 0 }
+        {
+          "name": "Inferno",
+          "cn": "炼狱小镇",
+          "s1": 13,
+          "s2": 9
+        },
+        {
+          "name": "Nuke",
+          "cn": "核子危机",
+          "s1": 8,
+          "s2": 13
+        },
+        {
+          "name": "Mirage",
+          "cn": "荒漠迷城",
+          "s1": 0,
+          "s2": 0
+        }
       ]
     },
     {
@@ -26,13 +49,31 @@
       "date": "09-11",
       "time": "18:30",
       "bo": "BO3",
-      "team1": { "name": "Vitality", "logo": "vitality", "color": "#FFD928" },
-      "team2": { "name": "Spirit", "logo": "spirit", "color": "#8C6239" },
+      "team1": {
+        "name": "Vitality",
+        "logo": "vitality",
+        "color": "#FFD928"
+      },
+      "team2": {
+        "name": "Spirit",
+        "logo": "spirit",
+        "color": "#8C6239"
+      },
       "score1": 0,
       "score2": 1,
       "maps": [
-        { "name": "Ancient", "cn": "远古遗迹", "s1": 10, "s2": 13 },
-        { "name": "Dust2", "cn": "炙热沙城", "s1": 6, "s2": 4 }
+        {
+          "name": "Ancient",
+          "cn": "远古遗迹",
+          "s1": 10,
+          "s2": 13
+        },
+        {
+          "name": "Dust2",
+          "cn": "炙热沙城",
+          "s1": 6,
+          "s2": 4
+        }
       ]
     },
     {
@@ -42,13 +83,31 @@
       "date": "09-10",
       "time": "22:30",
       "bo": "BO3",
-      "team1": { "name": "Vitality", "logo": "vitality", "color": "#FFD928" },
-      "team2": { "name": "MOUZ", "logo": "mouz", "color": "#E43B2F" },
+      "team1": {
+        "name": "Vitality",
+        "logo": "vitality",
+        "color": "#FFD928"
+      },
+      "team2": {
+        "name": "MOUZ",
+        "logo": "mouz",
+        "color": "#E43B2F"
+      },
       "score1": 2,
       "score2": 0,
       "maps": [
-        { "name": "Dust2", "cn": "炙热沙城", "s1": 13, "s2": 7 },
-        { "name": "Ancient", "cn": "远古遗迹", "s1": 13, "s2": 10 }
+        {
+          "name": "Dust2",
+          "cn": "炙热沙城",
+          "s1": 13,
+          "s2": 7
+        },
+        {
+          "name": "Ancient",
+          "cn": "远古遗迹",
+          "s1": 13,
+          "s2": 10
+        }
       ]
     },
     {
@@ -58,14 +117,38 @@
       "date": "09-10",
       "time": "19:00",
       "bo": "BO3",
-      "team1": { "name": "MongolZ", "logo": "mongolz", "color": "#E4A11B" },
-      "team2": { "name": "Falcons", "logo": "falcons", "color": "#00B36B" },
+      "team1": {
+        "name": "MongolZ",
+        "short": "MGLZ",
+        "logo": "mongolz",
+        "color": "#E4A11B"
+      },
+      "team2": {
+        "name": "Falcons",
+        "logo": "falcons",
+        "color": "#00B36B"
+      },
       "score1": 1,
       "score2": 2,
       "maps": [
-        { "name": "Mirage", "cn": "荒漠迷城", "s1": 13, "s2": 9 },
-        { "name": "Nuke", "cn": "核子危机", "s1": 9, "s2": 13 },
-        { "name": "Inferno", "cn": "炼狱小镇", "s1": 11, "s2": 13 }
+        {
+          "name": "Mirage",
+          "cn": "荒漠迷城",
+          "s1": 13,
+          "s2": 9
+        },
+        {
+          "name": "Nuke",
+          "cn": "核子危机",
+          "s1": 9,
+          "s2": 13
+        },
+        {
+          "name": "Inferno",
+          "cn": "炼狱小镇",
+          "s1": 11,
+          "s2": 13
+        }
       ]
     },
     {
@@ -75,14 +158,37 @@
       "date": "09-09",
       "time": "19:00",
       "bo": "BO3",
-      "team1": { "name": "Spirit", "logo": "spirit", "color": "#8C6239" },
-      "team2": { "name": "FaZe", "logo": "faze", "color": "#B01C24" },
+      "team1": {
+        "name": "Spirit",
+        "logo": "spirit",
+        "color": "#8C6239"
+      },
+      "team2": {
+        "name": "FaZe",
+        "logo": "faze",
+        "color": "#B01C24"
+      },
       "score1": 1,
       "score2": 2,
       "maps": [
-        { "name": "Mirage", "cn": "荒漠迷城", "s1": 13, "s2": 11 },
-        { "name": "Overpass", "cn": "死亡游乐园", "s1": 9, "s2": 13 },
-        { "name": "Nuke", "cn": "核子危机", "s1": 11, "s2": 13 }
+        {
+          "name": "Mirage",
+          "cn": "荒漠迷城",
+          "s1": 13,
+          "s2": 11
+        },
+        {
+          "name": "Overpass",
+          "cn": "死亡游乐园",
+          "s1": 9,
+          "s2": 13
+        },
+        {
+          "name": "Nuke",
+          "cn": "核子危机",
+          "s1": 11,
+          "s2": 13
+        }
       ]
     },
     {
@@ -92,14 +198,38 @@
       "date": "09-09",
       "time": "16:00",
       "bo": "BO3",
-      "team1": { "name": "Virtus.pro", "logo": "virtuspro", "color": "#F58220" },
-      "team2": { "name": "FURIA", "logo": "furia", "color": "#111111" },
+      "team1": {
+        "name": "Virtus.pro",
+        "short": "VP",
+        "logo": "virtuspro",
+        "color": "#F58220"
+      },
+      "team2": {
+        "name": "FURIA",
+        "logo": "furia",
+        "color": "#111111"
+      },
       "score1": 2,
       "score2": 1,
       "maps": [
-        { "name": "Anubis", "cn": "阿努比斯", "s1": 13, "s2": 8 },
-        { "name": "Dust2", "cn": "炙热沙城", "s1": 7, "s2": 13 },
-        { "name": "Ancient", "cn": "远古遗迹", "s1": 13, "s2": 9 }
+        {
+          "name": "Anubis",
+          "cn": "阿努比斯",
+          "s1": 13,
+          "s2": 8
+        },
+        {
+          "name": "Dust2",
+          "cn": "炙热沙城",
+          "s1": 7,
+          "s2": 13
+        },
+        {
+          "name": "Ancient",
+          "cn": "远古遗迹",
+          "s1": 13,
+          "s2": 9
+        }
       ]
     },
     {
@@ -109,14 +239,37 @@
       "date": "09-08",
       "time": "21:00",
       "bo": "BO3",
-      "team1": { "name": "Astralis", "logo": "astralis", "color": "#E43B2F" },
-      "team2": { "name": "Aurora", "logo": "aurora", "color": "#2AA3EF" },
+      "team1": {
+        "name": "Astralis",
+        "logo": "astralis",
+        "color": "#E43B2F"
+      },
+      "team2": {
+        "name": "Aurora",
+        "logo": "aurora",
+        "color": "#2AA3EF"
+      },
       "score1": 2,
       "score2": 1,
       "maps": [
-        { "name": "Nuke", "cn": "核子危机", "s1": 13, "s2": 8 },
-        { "name": "Anubis", "cn": "阿努比斯", "s1": 10, "s2": 13 },
-        { "name": "Inferno", "cn": "炼狱小镇", "s1": 13, "s2": 6 }
+        {
+          "name": "Nuke",
+          "cn": "核子危机",
+          "s1": 13,
+          "s2": 8
+        },
+        {
+          "name": "Anubis",
+          "cn": "阿努比斯",
+          "s1": 10,
+          "s2": 13
+        },
+        {
+          "name": "Inferno",
+          "cn": "炼狱小镇",
+          "s1": 13,
+          "s2": 6
+        }
       ]
     },
     {
@@ -126,13 +279,32 @@
       "date": "09-08",
       "time": "18:00",
       "bo": "BO3",
-      "team1": { "name": "GamerLegion", "logo": "gamerlegion", "color": "#6B4FBB" },
-      "team2": { "name": "paiN", "logo": "pain", "color": "#E4002B" },
+      "team1": {
+        "name": "GamerLegion",
+        "short": "GL",
+        "logo": "gamerlegion",
+        "color": "#6B4FBB"
+      },
+      "team2": {
+        "name": "paiN",
+        "logo": "pain",
+        "color": "#E4002B"
+      },
       "score1": 0,
       "score2": 2,
       "maps": [
-        { "name": "Mirage", "cn": "荒漠迷城", "s1": 9, "s2": 13 },
-        { "name": "Dust2", "cn": "炙热沙城", "s1": 11, "s2": 13 }
+        {
+          "name": "Mirage",
+          "cn": "荒漠迷城",
+          "s1": 9,
+          "s2": 13
+        },
+        {
+          "name": "Dust2",
+          "cn": "炙热沙城",
+          "s1": 11,
+          "s2": 13
+        }
       ]
     },
     {
@@ -142,14 +314,37 @@
       "date": "09-07",
       "time": "20:00",
       "bo": "BO5",
-      "team1": { "name": "G2", "logo": "g2", "color": "#E4AE39" },
-      "team2": { "name": "MOUZ", "logo": "mouz", "color": "#E43B2F" },
+      "team1": {
+        "name": "G2",
+        "logo": "g2",
+        "color": "#E4AE39"
+      },
+      "team2": {
+        "name": "MOUZ",
+        "logo": "mouz",
+        "color": "#E43B2F"
+      },
       "score1": 3,
       "score2": 2,
       "maps": [
-        { "name": "Mirage", "cn": "荒漠迷城", "s1": 13, "s2": 7 },
-        { "name": "Inferno", "cn": "炼狱小镇", "s1": 8, "s2": 13 },
-        { "name": "Nuke", "cn": "核子危机", "s1": 13, "s2": 11 }
+        {
+          "name": "Mirage",
+          "cn": "荒漠迷城",
+          "s1": 13,
+          "s2": 7
+        },
+        {
+          "name": "Inferno",
+          "cn": "炼狱小镇",
+          "s1": 8,
+          "s2": 13
+        },
+        {
+          "name": "Nuke",
+          "cn": "核子危机",
+          "s1": 13,
+          "s2": 11
+        }
       ]
     },
     {
@@ -159,8 +354,17 @@
       "date": "09-12",
       "time": "18:00",
       "bo": "BO3",
-      "team1": { "name": "TYLOO", "logo": "tyloo", "color": "#D7182A" },
-      "team2": { "name": "Rare Atom", "logo": "rareatom", "color": "#7B4FBF" },
+      "team1": {
+        "name": "TYLOO",
+        "logo": "tyloo",
+        "color": "#D7182A"
+      },
+      "team2": {
+        "name": "Rare Atom",
+        "short": "RA",
+        "logo": "rareatom",
+        "color": "#7B4FBF"
+      },
       "score1": 0,
       "score2": 0,
       "maps": []
@@ -172,8 +376,16 @@
       "date": "09-12",
       "time": "21:00",
       "bo": "BO3",
-      "team1": { "name": "Falcons", "logo": "falcons", "color": "#00B36B" },
-      "team2": { "name": "G2", "logo": "g2", "color": "#E4AE39" },
+      "team1": {
+        "name": "Falcons",
+        "logo": "falcons",
+        "color": "#00B36B"
+      },
+      "team2": {
+        "name": "G2",
+        "logo": "g2",
+        "color": "#E4AE39"
+      },
       "score1": 0,
       "score2": 0,
       "maps": []
@@ -185,8 +397,16 @@
       "date": "09-13",
       "time": "19:30",
       "bo": "BO3",
-      "team1": { "name": "NAVI", "logo": "navi", "color": "#F2E14C" },
-      "team2": { "name": "FaZe", "logo": "faze", "color": "#B01C24" },
+      "team1": {
+        "name": "NAVI",
+        "logo": "navi",
+        "color": "#F2E14C"
+      },
+      "team2": {
+        "name": "FaZe",
+        "logo": "faze",
+        "color": "#B01C24"
+      },
       "score1": 0,
       "score2": 0,
       "maps": []
@@ -198,8 +418,16 @@
       "date": "09-13",
       "time": "23:00",
       "bo": "BO3",
-      "team1": { "name": "Spirit", "logo": "spirit", "color": "#8C6239" },
-      "team2": { "name": "Vitality", "logo": "vitality", "color": "#FFD928" },
+      "team1": {
+        "name": "Spirit",
+        "logo": "spirit",
+        "color": "#8C6239"
+      },
+      "team2": {
+        "name": "Vitality",
+        "logo": "vitality",
+        "color": "#FFD928"
+      },
       "score1": 0,
       "score2": 0,
       "maps": []
@@ -211,8 +439,17 @@
       "date": "09-14",
       "time": "20:00",
       "bo": "BO3",
-      "team1": { "name": "MOUZ", "logo": "mouz", "color": "#E43B2F" },
-      "team2": { "name": "Eternal Fire", "logo": "eternalfire", "color": "#1E90FF" },
+      "team1": {
+        "name": "MOUZ",
+        "logo": "mouz",
+        "color": "#E43B2F"
+      },
+      "team2": {
+        "name": "Eternal Fire",
+        "short": "EF",
+        "logo": "eternalfire",
+        "color": "#1E90FF"
+      },
       "score1": 0,
       "score2": 0,
       "maps": []

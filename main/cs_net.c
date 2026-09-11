@@ -40,7 +40,7 @@ static const char *TAG = "cs_net";
 #define CS_NVS_JSON_KEY "json"
 
 #define CS_HTTP_BUF_MAX 12288    // 单次下载上限
-#define CS_CACHE_MAX    8192     // 写进 NVS 的 JSON 上限
+#define CS_CACHE_MAX    12288    // 写进 NVS 的 JSON 上限(与下载缓冲同上限)
 #define CS_AP_MAX       12
 
 // ---------------------------------------------------------------------------
@@ -448,11 +448,13 @@ static bool parse_matches(const char *json, cs_data_t *out)
 
         cJSON *t1 = cJSON_GetObjectItem(mi, "team1");
         jstr(t1, "name",  m->t1_name,  sizeof(m->t1_name),  "TBD");
+        jstr(t1, "short", m->t1_short, sizeof(m->t1_short), "");
         jstr(t1, "logo",  m->t1_logo,  sizeof(m->t1_logo),  "");
         m->t1_color = jcolor(t1, "color", 0xE43B2F);
 
         cJSON *t2 = cJSON_GetObjectItem(mi, "team2");
         jstr(t2, "name",  m->t2_name,  sizeof(m->t2_name),  "TBD");
+        jstr(t2, "short", m->t2_short, sizeof(m->t2_short), "");
         jstr(t2, "logo",  m->t2_logo,  sizeof(m->t2_logo),  "");
         m->t2_color = jcolor(t2, "color", 0x2AA3EF);
 
@@ -586,14 +588,23 @@ void cs_data_use_builtin(void)
 
 esp_err_t cs_data_load_cache(void)
 {
-    static char buf[CS_CACHE_MAX];
-    esp_err_t err = cache_load(buf, sizeof(buf));
+    // 用堆而不是静态 BSS:16 场比赛的 JSON 已经接近 10KB,没必要常驻占 RAM。
+    char *buf = (char *)malloc(CS_CACHE_MAX);
+    if (!buf) {
+        ESP_LOGW(TAG, "缓存缓冲分配失败,用内置示例");
+        cs_data_use_builtin();
+        return ESP_ERR_NO_MEM;
+    }
+    esp_err_t err = cache_load(buf, CS_CACHE_MAX);
     if (err != ESP_OK) {
+        free(buf);
         ESP_LOGW(TAG, "无缓存(%s),用内置示例", esp_err_to_name(err));
         cs_data_use_builtin();
         return err;
     }
-    if (!parse_matches(buf, &s_data)) {
+    bool ok = parse_matches(buf, &s_data);
+    free(buf);
+    if (!ok) {
         ESP_LOGW(TAG, "缓存解析失败,用内置示例");
         cs_data_use_builtin();
         return ESP_ERR_INVALID_RESPONSE;

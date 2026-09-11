@@ -438,9 +438,9 @@ static void build_live(void)
     // 105 支战队里 GamerLegion / Virtus.pro 这类长名才不会被硬切。
     char tn[CS_TEAM_LEN * 2];
     trunc_u8(tn, sizeof(tn), m->t1_name, 12);
-    label_fit(card, 4, 60, 64, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
+    label_fit(card, 4, 60, 72, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
     trunc_u8(tn, sizeof(tn), m->t2_name, 12);
-    label_fit(card, 156, 60, 64, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
+    label_fit(card, 148, 60, 72, 20, tn, &font_cn16, C_DIM, LV_TEXT_ALIGN_CENTER);
 
     // 中间大比分 / VS
     char sc[32];
@@ -553,10 +553,11 @@ static void build_list(bool upcoming)
         put_logo(row, 198, 22, false, m->t2_logo, m->t2_color);
 
         char t1[CS_TEAM_LEN * 2], t2[CS_TEAM_LEN * 2];
-        trunc_u8(t1, sizeof(t1), m->t1_name, 12);
-        trunc_u8(t2, sizeof(t2), m->t2_name, 12);
-        label_fit(row, 28, 22, 60, 20, t1, &font_cn16, C_TEXT, LV_TEXT_ALIGN_LEFT);
-        label_fit(row, 136, 22, 60, 20, t2, &font_cn16, C_TEXT, LV_TEXT_ALIGN_RIGHT);
+        // 列表行很窄(62px):JSON 给了 short 就用 short,否则用全名交给省略号
+        trunc_u8(t1, sizeof(t1), m->t1_short[0] ? m->t1_short : m->t1_name, 12);
+        trunc_u8(t2, sizeof(t2), m->t2_short[0] ? m->t2_short : m->t2_name, 12);
+        label_fit(row, 28, 22, 62, 20, t1, &font_cn16, C_TEXT, LV_TEXT_ALIGN_LEFT);
+        label_fit(row, 134, 22, 62, 20, t2, &font_cn16, C_TEXT, LV_TEXT_ALIGN_RIGHT);
 
         char sc[32];
         if (upcoming) snprintf(sc, sizeof(sc), "VS");
