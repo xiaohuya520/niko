@@ -5,16 +5,20 @@
 
 产物(直接覆盖仓库里的对应文件,都是"自动生成、勿手改"):
     main/cs_font_cn16.c   中文字体 16px,ASCII + GB2312 常用汉字(3755 一级汉字)
-    main/cs_assets.c      9 支战队队标,48px(比分卡) / 20px(列表缩略) 两档 RGB565
+    main/cs_assets.c      战队队标,48px(比分卡) / 20px(列表缩略) 两档 RGB565
 
 依赖:
     pip install pillow fonttools brotli
     npm install lv_font_conv        # LVGL 官方字体生成器
 
 用法:
+    # 1) 先按清单把真实队标下到本地(见 tools/cs_teams.json)
+    python tools/fetch_cs_logos.py --out .cache/logos
+    # 2) 生成资源
     python tools/gen_csboard_assets.py \
         --ttf  <NotoSansSC.ttf> \
-        --logo-dir <战队PNG目录> \
+        --logo-dir .cache/logos \
+        --teams-json tools/cs_teams.json \
         --out-dir main
 
 环境变量:
@@ -25,6 +29,7 @@
   woff2 用 fontTools 转 TTF 时必须清掉 flavor,否则仍是 wOF2 封装。
 """
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -97,10 +102,18 @@ def rgb565(r, g, b):
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
 
+def cid(s):
+    """固件 id -> 合法 C 标识符后缀(连字符转下划线,如 mouz-nxt -> mouz_nxt)。"""
+    return ''.join(ch if (ch.isalnum() or ch == '_') else '_' for ch in s)
+
+
 def flatten(path, size):
     """等比缩放到 size 内并居中;按队标亮度自动选底板色,保证深浅主题下都清晰。"""
     from PIL import Image
     im = Image.open(path).convert('RGBA')
+    bbox = im.getbbox()          # 很多官方 png 四周有透明留白,先裁掉再缩放
+    if bbox:
+        im = im.crop(bbox)
     w, h = im.size
     sc = min(size / w, size / h)
     nw, nh = max(1, int(w * sc + 0.5)), max(1, int(h * sc + 0.5))
@@ -130,36 +143,82 @@ def emit_bytes(f, name, data, per_line=12):
     f.write('};\n\n')
 
 
-def gen_logos(logo_dir, out_c):
-    ids = sorted(fn[:-4] for fn in os.listdir(logo_dir) if fn.lower().endswith('.png'))
-    if not ids:
+# 除固件 id 外还登记哪些写法(JSON 里 team.logo 可以用任意一个)
+EXTRA_ALIAS = {
+    'navi': ['natus-vincere', 'na-vi'],
+    'virtuspro': ['virtus-pro', 'vp'],
+    'g2': ['g2-esports'],
+    'faze': ['faze-clan'],
+    'mouz': ['mouz-esports'],
+    'mongolz': ['the-mongolz'],
+    'eternalfire': ['eternal-fire'],
+    '9pandas': ['9-pandas'],
+    'passionua': ['passion-ua'],
+    'lynnvision': ['lynn-vision'],
+    'rareatom': ['rare-atom'],
+    'redcanids': ['red-canids'],
+    'movistar': ['movistar-riders'],
+    'attax': ['alternate-attax'],
+    'bne': ['bad-news-eagles'],
+    'itb': ['into-the-breach'],
+    'unicorns': ['unicorns-of-love'],
+    'gamerlegion': ['team-gamerlegion'],
+    'big': ['big-clan'],
+    'cphflames': ['copenhagen-flames'],
+    'youngsters': ['saw-youngsters'],
+}
+
+
+def load_manifest(path):
+    """读 tools/cs_teams.json -> [(id, repo_dir), ...];没给清单则退化为按文件名。"""
+    man = json.load(open(path, encoding='utf-8'))
+    return [(t['id'], t.get('repo') or t['id']) for t in man['teams']]
+
+
+def gen_logos(logo_dir, out_c, teams=None):
+    """teams: [(id, repo_dir)];为 None 时按目录里的 PNG 文件名取 id。"""
+    if teams is None:
+        teams = [(fn[:-4], fn[:-4]) for fn in sorted(os.listdir(logo_dir))
+                 if fn.lower().endswith('.png')]
+    teams = [(t, rd) for t, rd in teams
+             if os.path.exists(os.path.join(logo_dir, t + '.png'))]
+    if not teams:
         raise SystemExit('目录里没有 PNG: %s' % logo_dir)
+
+    rows = []            # (查表 id, 资源 id)
+    for tid, rd in teams:
+        rows.append((tid, tid))
+        for al in EXTRA_ALIAS.get(tid, []):
+            rows.append((al, tid))
+        if rd and rd != tid:
+            rows.append((rd, tid))
+    seen = set()
+    rows = [r for r in rows if not (r[0] in seen or seen.add(r[0]))]
 
     with open(out_c, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// 自动生成,请勿手改 —— 见 tools/gen_csboard_assets.py\n')
         f.write('// 真实战队队标 RGB565(已按亮度合成底板,无需 alpha 通道)\n')
-        f.write('// 两档尺寸:%s\n' % ' / '.join('%dpx' % s for s in SIZES))
+        f.write('// %d 支战队,%s 两档尺寸\n' % (len(teams), ' / '.join('%dpx' % s for s in SIZES)))
         f.write('#include "cs_assets.h"\n\n')
 
         per_size = {}
         for size in SIZES:
             entries = []
-            for tid in ids:
+            for tid, _rd in teams:
                 img, plate, lum = flatten(os.path.join(logo_dir, tid + '.png'), size)
                 raw = bytearray()
                 for y in range(size):
                     for x in range(size):
                         v = rgb565(*img.getpixel((x, y)))
                         raw.append(v & 0xFF); raw.append((v >> 8) & 0xFF)
-                arr = 'logo%d_%s_map' % (size, tid)
+                arr = 'logo%d_%s_map' % (size, cid(tid))
                 emit_bytes(f, arr, raw)
                 entries.append((tid, arr))
-                print('[logo] %2dpx %-10s plate=%-18s lum=%5.1f' % (size, tid, plate, lum))
             per_size[size] = entries
 
         for size in SIZES:
             for tid, arr in per_size[size]:
-                f.write('const lv_image_dsc_t cs_logo%d_%s = {\n' % (size, tid))
+                f.write('static const lv_image_dsc_t logo%d_%s = {\n' % (size, cid(tid)))
                 f.write('    .header.magic = LV_IMAGE_HEADER_MAGIC,\n')
                 f.write('    .header.cf = LV_COLOR_FORMAT_RGB565,\n')
                 f.write('    .header.w = %d,\n    .header.h = %d,\n' % (size, size))
@@ -167,12 +226,15 @@ def gen_logos(logo_dir, out_c):
                 f.write('    .data_size = %d,\n' % (size * size * 2))
                 f.write('    .data = %s,\n};\n\n' % arr)
 
-        for size in SIZES:
-            f.write('typedef struct { const char *id; const lv_image_dsc_t *dsc; } cs_logo%d_ent_t;\n' % size)
-            f.write('static const cs_logo%d_ent_t CS_LOGOS%d[] = {\n' % (size, size))
-            for tid, _ in per_size[size]:
-                f.write('    { "%s", &cs_logo%d_%s },\n' % (tid, size, tid))
-            f.write('};\n\n')
+        f.write('typedef struct {\n'
+                '    const char *id;\n'
+                '    const lv_image_dsc_t *big;\n'
+                '    const lv_image_dsc_t *small;\n'
+                '} cs_logo_ent_t;\n\n')
+        f.write('static const cs_logo_ent_t CS_LOGOS[] = {\n')
+        for i, tid in rows:
+            f.write('    { "%s", &logo48_%s, &logo20_%s },\n' % (i, cid(tid), cid(tid)))
+        f.write('};\n\n')
 
         f.write('static bool cs_id_eq(const char *a, const char *b)\n{\n'
                 '    if (!a || !b) return false;\n'
@@ -185,16 +247,20 @@ def gen_logos(logo_dir, out_c):
                 '    }\n'
                 '    return *a == 0 && *b == 0;\n}\n\n')
 
-        for size, fn in ((48, 'cs_logo_get'), (20, 'cs_logo_get_small')):
-            f.write('const lv_image_dsc_t *%s(const char *id)\n{\n' % fn)
-            f.write('    if (!id || !id[0]) return NULL;\n')
-            f.write('    for (unsigned i = 0; i < sizeof(CS_LOGOS%d) / sizeof(CS_LOGOS%d[0]); i++)\n'
-                    % (size, size))
-            f.write('        if (cs_id_eq(CS_LOGOS%d[i].id, id)) return CS_LOGOS%d[i].dsc;\n'
-                    % (size, size))
-            f.write('    return NULL;\n}\n\n')
+        f.write('static const cs_logo_ent_t *cs_logo_find(const char *id)\n{\n'
+                '    if (!id || !id[0]) return NULL;\n'
+                '    for (unsigned i = 0; i < sizeof(CS_LOGOS) / sizeof(CS_LOGOS[0]); i++)\n'
+                '        if (cs_id_eq(CS_LOGOS[i].id, id)) return &CS_LOGOS[i];\n'
+                '    return NULL;\n}\n\n')
+        f.write('const lv_image_dsc_t *cs_logo_get(const char *id)\n{\n'
+                '    const cs_logo_ent_t *e = cs_logo_find(id);\n'
+                '    return e ? e->big : NULL;\n}\n\n')
+        f.write('const lv_image_dsc_t *cs_logo_get_small(const char *id)\n{\n'
+                '    const cs_logo_ent_t *e = cs_logo_find(id);\n'
+                '    return e ? e->small : NULL;\n}\n')
 
-    print('[logo] ok %s (%d 个队标 x %d 档)' % (out_c, len(ids), len(SIZES)))
+    print('[logo] ok %s (%d 支战队 / %d 个 id x %d 档)'
+          % (out_c, len(teams), len(rows), len(SIZES)))
 
 
 # ---------------------------------------------------------------- main
@@ -203,6 +269,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--ttf', help='中文字体 TTF/OTF(Noto Sans SC 等)')
     ap.add_argument('--logo-dir', help='战队 PNG 目录,文件名即 logo id(g2.png / navi.png)')
+    ap.add_argument('--teams-json', help='战队清单(默认 tools/cs_teams.json 存在则用),用于登记别名')
     ap.add_argument('--out-dir', default='main')
     ap.add_argument('--font-name', default='font_cn16')
     ap.add_argument('--font-size', type=int, default=16)
@@ -220,7 +287,12 @@ def main():
         gen_font(a.ttf, os.path.join(a.out_dir, 'cs_font_cn16.c'),
                  a.font_name, a.font_size, a.bpp, a.node, a.lv_font_conv)
     if a.logo_dir:
-        gen_logos(a.logo_dir, os.path.join(a.out_dir, 'cs_assets.c'))
+        here = os.path.dirname(os.path.abspath(__file__))
+        man = a.teams_json or os.path.join(here, 'cs_teams.json')
+        teams = load_manifest(man) if os.path.exists(man) else None
+        if teams is None:
+            print('[warn] 没有战队清单,按 PNG 文件名当 id 处理')
+        gen_logos(a.logo_dir, os.path.join(a.out_dir, 'cs_assets.c'), teams)
     return 0
 
 

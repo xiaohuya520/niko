@@ -1,5 +1,5 @@
 {
-  "updated": "09-11 15:40",
+  "updated": "09-11 16:45",
   "source": "示例数据（可自行替换）",
   "matches": [
     {
@@ -32,7 +32,7 @@
       "score2": 1,
       "maps": [
         { "name": "Ancient", "cn": "远古遗迹", "s1": 10, "s2": 13 },
-        { "name": "Dust2", "cn": "炙热沙城", "s1": 0, "s2": 0 }
+        { "name": "Dust2", "cn": "炙热沙城", "s1": 6, "s2": 4 }
       ]
     },
     {
@@ -53,6 +53,23 @@
     },
     {
       "status": "finished",
+      "event": "BLAST 世界总决赛",
+      "stage": "半决赛",
+      "date": "09-10",
+      "time": "19:00",
+      "bo": "BO3",
+      "team1": { "name": "MongolZ", "logo": "mongolz", "color": "#E4A11B" },
+      "team2": { "name": "Falcons", "logo": "falcons", "color": "#00B36B" },
+      "score1": 1,
+      "score2": 2,
+      "maps": [
+        { "name": "Mirage", "cn": "荒漠迷城", "s1": 13, "s2": 9 },
+        { "name": "Nuke", "cn": "核子危机", "s1": 9, "s2": 13 },
+        { "name": "Inferno", "cn": "炼狱小镇", "s1": 11, "s2": 13 }
+      ]
+    },
+    {
+      "status": "finished",
       "event": "IEM 卡托维兹",
       "stage": "四分之一决赛",
       "date": "09-09",
@@ -66,6 +83,23 @@
         { "name": "Mirage", "cn": "荒漠迷城", "s1": 13, "s2": 11 },
         { "name": "Overpass", "cn": "死亡游乐园", "s1": 9, "s2": 13 },
         { "name": "Nuke", "cn": "核子危机", "s1": 11, "s2": 13 }
+      ]
+    },
+    {
+      "status": "finished",
+      "event": "IEM 卡托维兹",
+      "stage": "四分之一决赛",
+      "date": "09-09",
+      "time": "16:00",
+      "bo": "BO3",
+      "team1": { "name": "Virtus.pro", "logo": "virtuspro", "color": "#F58220" },
+      "team2": { "name": "FURIA", "logo": "furia", "color": "#111111" },
+      "score1": 2,
+      "score2": 1,
+      "maps": [
+        { "name": "Anubis", "cn": "阿努比斯", "s1": 13, "s2": 8 },
+        { "name": "Dust2", "cn": "炙热沙城", "s1": 7, "s2": 13 },
+        { "name": "Ancient", "cn": "远古遗迹", "s1": 13, "s2": 9 }
       ]
     },
     {
@@ -92,8 +126,8 @@
       "date": "09-08",
       "time": "18:00",
       "bo": "BO3",
-      "team1": { "name": "Falcons", "logo": "falcons", "color": "#00B36B" },
-      "team2": { "name": "NAVI", "logo": "navi", "color": "#F2E14C" },
+      "team1": { "name": "GamerLegion", "logo": "gamerlegion", "color": "#6B4FBB" },
+      "team2": { "name": "paiN", "logo": "pain", "color": "#E4002B" },
       "score1": 0,
       "score2": 2,
       "maps": [
@@ -120,20 +154,20 @@
     },
     {
       "status": "upcoming",
-      "event": "PGL 哥本哈根大师赛",
+      "event": "ESL 职业联赛 S21",
       "stage": "小组赛",
       "date": "09-12",
       "time": "18:00",
       "bo": "BO3",
-      "team1": { "name": "Aurora", "logo": "aurora", "color": "#2AA3EF" },
-      "team2": { "name": "Astralis", "logo": "astralis", "color": "#E43B2F" },
+      "team1": { "name": "TYLOO", "logo": "tyloo", "color": "#D7182A" },
+      "team2": { "name": "Rare Atom", "logo": "rareatom", "color": "#7B4FBF" },
       "score1": 0,
       "score2": 0,
       "maps": []
     },
     {
       "status": "upcoming",
-      "event": "PGL 哥本哈根大师赛",
+      "event": "ESL 职业联赛 S21",
       "stage": "小组赛",
       "date": "09-12",
       "time": "21:00",
@@ -178,7 +212,7 @@
       "time": "20:00",
       "bo": "BO3",
       "team1": { "name": "MOUZ", "logo": "mouz", "color": "#E43B2F" },
-      "team2": { "name": "Aurora", "logo": "aurora", "color": "#2AA3EF" },
+      "team2": { "name": "Eternal Fire", "logo": "eternalfire", "color": "#1E90FF" },
       "score1": 0,
       "score2": 0,
       "maps": []

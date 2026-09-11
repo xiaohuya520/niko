@@ -10,8 +10,10 @@
 extern const lv_font_t font_cn16;
 
 // 按 id(如 "g2" / "navi",大小写无关)取真实战队队标;未收录返回 NULL,
-// 调用方应回退到"占位徽章"而不是留空。
+// 调用方应回退到"占位徽章"(纯队色方块)而不是留空。
 //   cs_logo_get()       48x48,比分卡用
-//   cs_logo_get_small() 24x24,战绩/预告列表缩略用(预生成,固件不做运行时缩放)
+//   cs_logo_get_small() 20x20,战绩/预告列表缩略用(预生成,固件不做运行时缩放)
+//
+// 已收录的 id 见 tools/cs_teams.json(含别名,如 navi / natus-vincere 等价)。
 const lv_image_dsc_t *cs_logo_get(const char *id);
 const lv_image_dsc_t *cs_logo_get_small(const char *id);

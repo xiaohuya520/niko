@@ -1,0 +1,531 @@
+{
+  "source": "https://github.com/lootmarket/esport-team-logos (csgo/)",
+  "count": 105,
+  "teams": [
+    {
+      "id": "3dmax",
+      "cn": "3DMAX",
+      "repo": "3dmax"
+    },
+    {
+      "id": "9pandas",
+      "cn": "9 Pandas",
+      "repo": "9-pandas"
+    },
+    {
+      "id": "9z",
+      "cn": "9z Team",
+      "repo": "9z"
+    },
+    {
+      "id": "amkal",
+      "cn": "AMKAL",
+      "repo": "amkal"
+    },
+    {
+      "id": "apeks",
+      "cn": "Apeks",
+      "repo": "apeks"
+    },
+    {
+      "id": "apeks-rebels",
+      "cn": "Apeks Rebels",
+      "repo": "apeks-rebels"
+    },
+    {
+      "id": "astralis",
+      "cn": "Astralis",
+      "repo": "astralis"
+    },
+    {
+      "id": "astralis-talent",
+      "cn": "Astralis Talent",
+      "repo": "astralis-talent"
+    },
+    {
+      "id": "atk",
+      "cn": "ATK",
+      "repo": "atk"
+    },
+    {
+      "id": "attax",
+      "cn": "ALTERNATE aTTaX",
+      "repo": "alternate-attax"
+    },
+    {
+      "id": "aurora",
+      "cn": "Aurora Gaming",
+      "repo": "aurora"
+    },
+    {
+      "id": "b8",
+      "cn": "B8",
+      "repo": "b8"
+    },
+    {
+      "id": "betboom",
+      "cn": "BetBoom",
+      "repo": "betboom"
+    },
+    {
+      "id": "big",
+      "cn": "BIG",
+      "repo": "big"
+    },
+    {
+      "id": "bleed",
+      "cn": "BLEED",
+      "repo": "bleed"
+    },
+    {
+      "id": "bne",
+      "cn": "Bad News Eagles",
+      "repo": "bad-news-eagles"
+    },
+    {
+      "id": "cloud9",
+      "cn": "Cloud9",
+      "repo": "cloud9"
+    },
+    {
+      "id": "complexity",
+      "cn": "Complexity",
+      "repo": "complexity"
+    },
+    {
+      "id": "cphflames",
+      "cn": "Copenhagen Flames",
+      "repo": "copenhagen-flames"
+    },
+    {
+      "id": "dignitas",
+      "cn": "Dignitas",
+      "repo": "dignitas"
+    },
+    {
+      "id": "ecstatic",
+      "cn": "ECSTATIC",
+      "repo": "ecstatic"
+    },
+    {
+      "id": "eg",
+      "cn": "Evil Geniuses",
+      "repo": "evil-geniuses"
+    },
+    {
+      "id": "ence",
+      "cn": "ENCE",
+      "repo": "ence"
+    },
+    {
+      "id": "endpoint",
+      "cn": "Endpoint",
+      "repo": "endpoint"
+    },
+    {
+      "id": "entropiq",
+      "cn": "Entropiq",
+      "repo": "entropiq"
+    },
+    {
+      "id": "eternalfire",
+      "cn": "Eternal Fire",
+      "repo": "eternal-fire"
+    },
+    {
+      "id": "ex-anonymo",
+      "cn": "Anonymo",
+      "repo": "anonymo"
+    },
+    {
+      "id": "exfinest",
+      "cn": "ex-Finest",
+      "repo": "finest"
+    },
+    {
+      "id": "extremum",
+      "cn": "EXTREMUM",
+      "repo": "extremum"
+    },
+    {
+      "id": "falcons",
+      "cn": "Team Falcons",
+      "repo": "falcons"
+    },
+    {
+      "id": "faze",
+      "cn": "FaZe Clan",
+      "repo": "faze-clan"
+    },
+    {
+      "id": "fluxo",
+      "cn": "Fluxo",
+      "repo": "fluxo"
+    },
+    {
+      "id": "fnatic",
+      "cn": "fnatic",
+      "repo": "fnatic"
+    },
+    {
+      "id": "fnatic-rising",
+      "cn": "fnatic Rising",
+      "repo": "fnatic-rising"
+    },
+    {
+      "id": "forze",
+      "cn": "forZe",
+      "repo": "forze"
+    },
+    {
+      "id": "furia",
+      "cn": "FURIA",
+      "repo": "furia"
+    },
+    {
+      "id": "g2",
+      "cn": "G2 Esports",
+      "repo": "g2-esports"
+    },
+    {
+      "id": "gaimin",
+      "cn": "Gaimin Gladiators",
+      "repo": "gaimin-gladiators"
+    },
+    {
+      "id": "gamerlegion",
+      "cn": "GamerLegion",
+      "repo": "gamerlegion"
+    },
+    {
+      "id": "godsent",
+      "cn": "GODSENT",
+      "repo": "godsent"
+    },
+    {
+      "id": "grayhound",
+      "cn": "Grayhound",
+      "repo": "grayhound"
+    },
+    {
+      "id": "gtz",
+      "cn": "GTZ",
+      "repo": "gtz"
+    },
+    {
+      "id": "havu",
+      "cn": "HAVU",
+      "repo": "havu"
+    },
+    {
+      "id": "hellraiser",
+      "cn": "HellRaisers",
+      "repo": "hellraisers"
+    },
+    {
+      "id": "heroic",
+      "cn": "HEROIC",
+      "repo": "heroic"
+    },
+    {
+      "id": "illuminar",
+      "cn": "Illuminar",
+      "repo": "illuminar"
+    },
+    {
+      "id": "imperial",
+      "cn": "Imperial",
+      "repo": "imperial"
+    },
+    {
+      "id": "insilio",
+      "cn": "Insilio",
+      "repo": "insilio"
+    },
+    {
+      "id": "isurus",
+      "cn": "Isurus",
+      "repo": "isurus"
+    },
+    {
+      "id": "itb",
+      "cn": "Into the Breach",
+      "repo": "into-the-breach"
+    },
+    {
+      "id": "jano",
+      "cn": "JANO",
+      "repo": "jano"
+    },
+    {
+      "id": "k23",
+      "cn": "K23",
+      "repo": "k23"
+    },
+    {
+      "id": "koi",
+      "cn": "KOI",
+      "repo": "koi"
+    },
+    {
+      "id": "legacy",
+      "cn": "Legacy",
+      "repo": "legacy"
+    },
+    {
+      "id": "legion",
+      "cn": "Legion",
+      "repo": "hard-legion"
+    },
+    {
+      "id": "liquid",
+      "cn": "Team Liquid",
+      "repo": "team-liquid"
+    },
+    {
+      "id": "lynnvision",
+      "cn": "Lynn Vision",
+      "repo": "lynn-vision"
+    },
+    {
+      "id": "m80",
+      "cn": "M80",
+      "repo": "m80"
+    },
+    {
+      "id": "madlions",
+      "cn": "MAD Lions",
+      "repo": "mad-lions"
+    },
+    {
+      "id": "majestic",
+      "cn": "Majestic",
+      "repo": "majestic-lions"
+    },
+    {
+      "id": "metizport",
+      "cn": "Metizport",
+      "repo": "metizport"
+    },
+    {
+      "id": "mibr",
+      "cn": "MIBR",
+      "repo": "mibr"
+    },
+    {
+      "id": "mongolz",
+      "cn": "The MongolZ",
+      "repo": "the-mongolz"
+    },
+    {
+      "id": "monte",
+      "cn": "Monte",
+      "repo": "monte"
+    },
+    {
+      "id": "mouz",
+      "cn": "MOUZ",
+      "repo": "mouz"
+    },
+    {
+      "id": "mouz-nxt",
+      "cn": "MOUZ NXT",
+      "repo": "mouz-nxt"
+    },
+    {
+      "id": "movistar",
+      "cn": "Movistar Riders",
+      "repo": "movistar-riders"
+    },
+    {
+      "id": "navi",
+      "cn": "Natus Vincere",
+      "repo": "natus-vincere"
+    },
+    {
+      "id": "navijunior",
+      "cn": "NAVI Junior",
+      "repo": "navi-junior"
+    },
+    {
+      "id": "nemiga",
+      "cn": "Nemiga",
+      "repo": "nemiga"
+    },
+    {
+      "id": "nip",
+      "cn": "Ninjas in Pyjamas",
+      "repo": "ninjas-in-pyjamas"
+    },
+    {
+      "id": "nordavind",
+      "cn": "Nordavind",
+      "repo": "nordavind"
+    },
+    {
+      "id": "nouns",
+      "cn": "nouns",
+      "repo": "nouns"
+    },
+    {
+      "id": "nrg",
+      "cn": "NRG",
+      "repo": "nrg"
+    },
+    {
+      "id": "oddiK",
+      "cn": "ODDIK",
+      "repo": "oddik"
+    },
+    {
+      "id": "og",
+      "cn": "OG",
+      "repo": "og"
+    },
+    {
+      "id": "order",
+      "cn": "ORDER",
+      "repo": "order"
+    },
+    {
+      "id": "pain",
+      "cn": "paiN Gaming",
+      "repo": "pain-gaming"
+    },
+    {
+      "id": "parivision",
+      "cn": "PARIVISION",
+      "repo": "parivision"
+    },
+    {
+      "id": "partizan",
+      "cn": "Partizan",
+      "repo": "partizan"
+    },
+    {
+      "id": "passionua",
+      "cn": "Passion UA",
+      "repo": "passion-ua"
+    },
+    {
+      "id": "rareatom",
+      "cn": "Rare Atom",
+      "repo": "rare-atom"
+    },
+    {
+      "id": "rebels",
+      "cn": "Rebels",
+      "repo": "rebels"
+    },
+    {
+      "id": "redcanids",
+      "cn": "RED Canids",
+      "repo": "red-canids"
+    },
+    {
+      "id": "renegades",
+      "cn": "Renegades",
+      "repo": "renegades"
+    },
+    {
+      "id": "rooster",
+      "cn": "Rooster",
+      "repo": "rooster"
+    },
+    {
+      "id": "sangal",
+      "cn": "Sangal",
+      "repo": "sangal"
+    },
+    {
+      "id": "sashi",
+      "cn": "Sashi",
+      "repo": "sashi"
+    },
+    {
+      "id": "sharks",
+      "cn": "Sharks",
+      "repo": "sharks"
+    },
+    {
+      "id": "sinnerS",
+      "cn": "SINNERS",
+      "repo": "sinners"
+    },
+    {
+      "id": "skade",
+      "cn": "SKADE",
+      "repo": "skade"
+    },
+    {
+      "id": "spirit",
+      "cn": "Team Spirit",
+      "repo": "team-spirit"
+    },
+    {
+      "id": "spiritacad",
+      "cn": "Spirit Academy",
+      "repo": "spirit-academy"
+    },
+    {
+      "id": "sprout",
+      "cn": "Sprout",
+      "repo": "sprout"
+    },
+    {
+      "id": "tyloo",
+      "cn": "TYLOO",
+      "repo": "tyloo"
+    },
+    {
+      "id": "unicorns",
+      "cn": "Unicorns of Love",
+      "repo": "unicorns-of-love"
+    },
+    {
+      "id": "vertex",
+      "cn": "VERTEX",
+      "repo": "vertex"
+    },
+    {
+      "id": "virtuspro",
+      "cn": "Virtus.pro",
+      "repo": "virtus-pro"
+    },
+    {
+      "id": "virtuspro-acad",
+      "cn": "VP.Prodigy",
+      "repo": "vp.prodigy"
+    },
+    {
+      "id": "vitality",
+      "cn": "Team Vitality",
+      "repo": "vitality"
+    },
+    {
+      "id": "wildcard",
+      "cn": "Wildcard",
+      "repo": "wildcard"
+    },
+    {
+      "id": "wingsup",
+      "cn": "Wings Up",
+      "repo": "wings-up"
+    },
+    {
+      "id": "winstrike",
+      "cn": "Winstrike",
+      "repo": "winstrike"
+    },
+    {
+      "id": "young-ninjas",
+      "cn": "Young Ninjas",
+      "repo": "young-ninjas"
+    },
+    {
+      "id": "youngsters",
+      "cn": "Youngsters",
+      "repo": "saw-youngsters"
+    }
+  ]
+}
