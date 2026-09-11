@@ -93,6 +93,10 @@ static cs_fetch_state_t s_last_fetch = (cs_fetch_state_t)-1;
 static int              s_last_ap    = -1;
 static int              s_bat_tick;
 
+// 网络页标题标签(扫描时让省略号动起来,一眼能看出界面没死机)+ 动画计数
+static lv_obj_t *s_wifi_lbl;
+static int       s_scan_dots;
+
 // 密码输入(完整三键键盘)
 static char s_pass[34];
 static char s_target_ssid[33];
@@ -341,7 +345,11 @@ static void update_hint(void)
     case VIEW_LIVE:     h = "上下翻页 确定刷新 双击返回"; break;
     case VIEW_HISTORY:
     case VIEW_UPCOMING: h = "上下翻动 确定刷新 双击返回"; break;
-    case VIEW_WIFI:     h = "上下选择 确定连接 长按返回"; break;
+    case VIEW_WIFI:
+        // 列表为空(扫描中/失败)时,"确定连接"是误导 —— 这时候确定键是"重新扫描"
+        h = (cs_net_ap_count() > 0) ? "上下选择 确定连接 长按返回"
+                                    : "确定重新扫描 长按返回";
+        break;
     default:            h = "上下选键 确定输入 长按返回"; break;
     }
     lv_obj_t *hl = lv_obj_get_child(s_hint, 0);
@@ -595,18 +603,45 @@ static void build_wifi(void)
     lv_obj_t *head = box(s_body, 8, 4, 224, 26, C_CARD, 6);
     const char *t = "选择无线网络";
     uint32_t tc = C_TEXT;
-    if (st == CS_NET_SCANNING)        { t = "正在扫描...";   tc = C_YEL; }
-    else if (st == CS_NET_CONNECTING) { t = "正在连接...";   tc = C_YEL; }
+    if (st == CS_NET_SCANNING)        { t = "正在扫描";      tc = C_YEL; }
+    else if (st == CS_NET_CONNECTING) { t = "正在连接";      tc = C_YEL; }
     else if (st == CS_NET_ONLINE)     { t = "已连接";        tc = C_GRN; }
-    else if (st == CS_NET_FAILED)     { t = "连接失败,确定重扫"; tc = C_RED; }
-    label_at(head, 10, 3, t, &font_cn16, tc);
+    else if (st == CS_NET_FAILED)     { t = cs_net_scan_msg()[0] ? cs_net_scan_msg()
+                                                                  : "扫描失败,按确定重试";
+                                        tc = C_RED; }
+    // 记下标题标签:tick() 里扫描中会改成 "正在扫描." / ".." / "..." 循环
+    s_wifi_lbl = label_at(head, 10, 3, t, &font_cn16, tc);
+
+    // 右上角标一下扫到几个网络,免得"是不是没扫到"全靠猜
+    int napl = cs_net_ap_count();
+    if (st != CS_NET_SCANNING && napl > 0) {
+        char cnt[20];
+        snprintf(cnt, sizeof(cnt), "%d 个", napl % 1000);
+        lv_obj_t *cl = label(head, cnt, &font_cn16, C_DIM2);
+        lv_obj_align(cl, LV_ALIGN_RIGHT_MID, -10, 0);
+    }
 
     lv_obj_t *list = box(s_body, 8, 36, 224, 232, C_CARD, 6);
 
     int n = cs_net_ap_count();
     if (n <= 0) {
-        const char *msg = (st == CS_NET_SCANNING) ? "扫描附近网络..." : "未找到无线网络";
-        label_at(list, 56, 100, msg, &font_cn16, C_DIM);
+        // 每行控制在 10 个汉字以内(16px 字宽 × 10 = 160px),不会顶出 224px 面板
+        const char *msg, *sub;
+        uint32_t mc = C_DIM;
+        if (st == CS_NET_SCANNING) {
+            msg = "正在扫描附近网络";
+            sub = "请稍候";
+        } else if (st == CS_NET_FAILED) {
+            // 扫描失败必须给出"能操作"的出口,不能只留一句提示卡在这里
+            msg = "扫描失败";
+            sub = "按确定键重新扫描";
+            mc = C_YEL;
+        } else {
+            msg = "没有扫到无线网络";
+            sub = "按确定键重试";
+        }
+        label_at(list, 48, 92, msg, &font_cn16, mc);
+        label_at(list, 48, 122, sub, &font_cn16, C_DIM2);
         return;
     }
     if (s_ap_sel >= n) s_ap_sel = 0;
@@ -813,6 +848,7 @@ static void rebuild(void)
         lv_obj_delete(s_body);
         s_body = NULL;
     }
+    s_wifi_lbl = NULL;                 // 跟着 s_body 一起被删掉了
     s_body = box(s_scr, 0, BODY_Y, SCREEN_W, BODY_H, C_BG, 0);
 
     switch (s_view) {
@@ -926,6 +962,16 @@ static void tick(lv_timer_t *t)
     (void)t;
     update_sbar();
 
+    // 扫描兜底:超过 15s 没结果就强制收尾成"失败",界面绝不会永远停在扫描页
+    cs_net_scan_watchdog();
+
+    // 扫描中让标题的省略号循环:既给用户"在动"的反馈,也能一眼判断是不是真死机
+    if (s_view == VIEW_WIFI && cs_net_state() == CS_NET_SCANNING && s_wifi_lbl) {
+        static const char *DOTS[4] = { "正在扫描", "正在扫描.", "正在扫描..", "正在扫描..." };
+        s_scan_dots = (s_scan_dots + 1) & 3;
+        lv_label_set_text(s_wifi_lbl, DOTS[s_scan_dots]);
+    }
+
     cs_net_state_t ns = cs_net_state();
     if (ns != s_last_net) {
         s_last_net = ns;
@@ -1017,7 +1063,9 @@ void demo_csboard_exit(void)
     if (s_scr) {
         lv_obj_delete(s_scr);
         s_scr = NULL;
+        s_body = NULL;
         s_hint = NULL;
+        s_wifi_lbl = NULL;
         s_lbl_time = s_lbl_wifi = s_lbl_bat = s_bat_fill = s_net_dot = NULL;
     }
 }

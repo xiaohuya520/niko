@@ -22,6 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
+#include "nvs_flash.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +42,17 @@ static const char *TAG = "cs_net";
 
 #define CS_HTTP_BUF_MAX 12288    // 单次下载上限
 #define CS_CACHE_MAX    12288    // 写进 NVS 的 JSON 上限(与下载缓冲同上限)
-#define CS_AP_MAX       12
+#define CS_AP_MAX       16       // 附近 AP 列表上限(原先 12,人多的地方经常装不下)
+
+// 扫描参数:显式给出每个信道的驻留时间,让整轮扫描有明确的时间上限
+// (2.4G 13 个信道 × ~220ms ≈ 3s),不会因为个别信道拖住而永远扫不完。
+#define CS_SCAN_MIN_MS  80
+#define CS_SCAN_MAX_MS  220
+
+// 数据缓存用的资源分区(cardid 之后,见 partitions.csv)。
+// 默认 nvs 只有 24KB,还要和 Wi-Fi 凭证共享,12KB 的 JSON 缓存塞进去太挤;
+// 卡 id 之后的空闲 Flash 有 ~4.6MB,这里划 64KB 出来专门放数据。
+#define CS_NVS_PART     "csdata"
 
 // ---------------------------------------------------------------------------
 // 状态
@@ -62,6 +73,10 @@ static int              s_reconnect;
 
 static wifi_ap_record_t s_aps[CS_AP_MAX];
 static uint16_t         s_ap_count;
+static volatile bool    s_scan_busy;      // 扫描任务运行中
+static bool             s_scan_keep_online; // 扫描前已联网:扫完要恢复成 ONLINE
+static int              s_scan_watch;     // 看门狗计数(UI 每 200ms +1)
+static char             s_scan_msg[48];   // 最近一次扫描的错误说明
 
 static cs_data_t        s_data;
 static bool             s_from_net;
@@ -159,6 +174,9 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
         const wifi_event_sta_disconnected_t *d = (const wifi_event_sta_disconnected_t *)data;
         ESP_LOGW(TAG, "Wi-Fi 断开, reason=%d", d ? (int)d->reason : -1);
         s_ip[0] = 0;
+        // 配网/扫描期间不自动重连:否则 esp_wifi_connect() 会把正在跑的扫描打断,
+        // 表现就是"一直停在扫描页"。扫描任务自己会在扫完后让用户重新连接。
+        if (s_scan_busy) break;
         if (s_state == CS_NET_CONNECTING || s_state == CS_NET_ONLINE) {
             if (s_reconnect < 3) {
                 s_reconnect++;
@@ -171,20 +189,11 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
         }
         break;
     }
-    case WIFI_EVENT_SCAN_DONE: {
-        uint16_t n = CS_AP_MAX;
-        s_ap_count = 0;
-        esp_err_t err = esp_wifi_scan_get_ap_records(&n, s_aps);
-        if (err == ESP_OK) {
-            s_ap_count = n;
-            s_state = CS_NET_APLIST;
-            ESP_LOGI(TAG, "扫描完成, %u 个 AP", (unsigned)n);
-        } else {
-            ESP_LOGE(TAG, "取扫描结果失败: %s", esp_err_to_name(err));
-            s_state = CS_NET_FAILED;
-        }
+    case WIFI_EVENT_SCAN_DONE:
+        // 扫描结果统一由 scan_task() 用阻塞式调用取走,这里不再 get_ap_records,
+        // 免得事件线程和扫描任务同时取同一份结果。
+        ESP_LOGI(TAG, "扫描事件完成");
         break;
-    }
     default:
         break;
     }
@@ -286,25 +295,108 @@ void cs_net_shutdown(void)
 }
 
 cs_net_state_t cs_net_state(void)        { return s_state; }
-void           cs_net_state_reset(void)  { if (s_state == CS_NET_FAILED) s_state = CS_NET_READY; }
+void           cs_net_state_reset(void)  { if (s_state == CS_NET_FAILED) s_state = CS_NET_READY; s_scan_msg[0] = 0; }
 bool           cs_net_online(void)       { return s_state == CS_NET_ONLINE; }
 const char    *cs_net_ip(void)           { return s_ip; }
 const char    *cs_net_ssid(void)         { return s_ssid; }
 const char    *cs_net_ap_prev_ssid(void) { return s_prev_ssid; }
 
+// 扫描任务:在独立任务里用阻塞式 esp_wifi_scan_start()。
+// 旧实现是"发起异步扫描 + 等 WIFI_EVENT_SCAN_DONE 事件",一旦事件没来(或事件里
+// 取结果失败),界面就永远停在"正在扫描"。阻塞式调用有明确的时间上限,而且结果
+// 由发起扫描的人自己取,不存在"谁先取到"的竞争。
+static void scan_task(void *arg)
+{
+    (void)arg;
+
+    // STA 正在"连接中"时 scan_start 会直接返回 ESP_ERR_WIFI_STATE,先松开它;
+    // 这期间产生的 DISCONNECTED 事件会被 s_scan_busy 挡掉,不会触发自动重连。
+    // 已经连上(ONLINE)的情况不动连接:边连边扫是允许的,没必要把用户的网断掉。
+    if (s_state == CS_NET_CONNECTING) {
+        esp_wifi_disconnect();
+        vTaskDelay(pdMS_TO_TICKS(150));
+    }
+
+    wifi_scan_config_t cfg = { 0 };
+    cfg.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+    cfg.show_hidden = false;
+    cfg.scan_time.active.min = CS_SCAN_MIN_MS;
+    cfg.scan_time.active.max = CS_SCAN_MAX_MS;
+
+    esp_err_t err = esp_wifi_scan_start(&cfg, true);   // true = 阻塞到本轮扫完
+    uint16_t  total = 0;
+    uint16_t  got   = 0;
+
+    if (err == ESP_OK) err = esp_wifi_scan_get_ap_num(&total);
+    if (err == ESP_OK) {
+        // 先看总数再取:buffer 小于总数时直接取会报 NOT_ENOUGH_MEMORY。
+        uint16_t cap = CS_AP_MAX;
+        esp_err_t g = esp_wifi_scan_get_ap_records(&cap, s_aps);
+        if (g != ESP_OK) {
+            err = g;
+        } else {
+            // 双保险:*number 的语义在不同 IDF 版本里是"写入条数"或"发现总数",
+            // 统一夹到数组容量以内,绝不让后续按下标访问越界。
+            got = (cap > CS_AP_MAX) ? CS_AP_MAX : cap;
+            if (got > total) got = total;
+        }
+    }
+
+    if (err == ESP_OK) {
+        s_ap_count = got;
+        // 扫完后回到扫描前的连接状态:本来就联网的别因为"扫了一下"变成未联网。
+        s_state = s_scan_keep_online ? CS_NET_ONLINE : CS_NET_APLIST;
+        s_scan_msg[0] = 0;
+        ESP_LOGI(TAG, "扫描完成: 取到 %u 个(共发现 %u 个)", (unsigned)got, (unsigned)total);
+    } else {
+        s_ap_count = 0;
+        s_state = s_scan_keep_online ? CS_NET_ONLINE : CS_NET_FAILED;
+        scpy(s_scan_msg, sizeof(s_scan_msg), "扫描失败,按确定重试");
+        ESP_LOGE(TAG, "扫描失败: %s", esp_err_to_name(err));
+    }
+
+    s_scan_busy = false;
+    vTaskDelete(NULL);
+}
+
 void cs_net_scan(void)
 {
+    if (s_scan_busy) return;                 // 已经有一轮在跑,忽略重复请求
     if (!s_wifi_started) {
-        if (wifi_bring_up() != ESP_OK) { s_state = CS_NET_FAILED; return; }
+        if (wifi_bring_up() != ESP_OK) {
+            s_state = CS_NET_FAILED;
+            scpy(s_scan_msg, sizeof(s_scan_msg), "Wi-Fi 启动失败");
+            return;
+        }
     }
-    esp_err_t err = esp_wifi_scan_start(NULL, false);
-    if (err == ESP_OK) {
-        s_state = CS_NET_SCANNING;
-    } else {
-        ESP_LOGE(TAG, "scan_start: %s", esp_err_to_name(err));
+
+    s_scan_keep_online = (s_state == CS_NET_ONLINE);
+    s_scan_busy = true;
+    s_scan_watch = 0;
+    s_ap_count = 0;
+    s_scan_msg[0] = 0;
+    s_state = CS_NET_SCANNING;
+    if (xTaskCreate(scan_task, "cs_scan", 4096, NULL, 6, NULL) != pdPASS) {
+        s_scan_busy = false;
         s_state = CS_NET_FAILED;
-        scpy(s_fetch_msg, sizeof(s_fetch_msg), "Scan failed");
+        scpy(s_scan_msg, sizeof(s_scan_msg), "扫描任务创建失败");
     }
+}
+
+bool        cs_net_scan_busy(void) { return s_scan_busy; }
+const char *cs_net_scan_msg(void)  { return s_scan_msg; }
+
+void cs_net_scan_watchdog(void)
+{
+    if (s_state != CS_NET_SCANNING) { s_scan_watch = 0; return; }
+    if (++s_scan_watch < 75) return;         // 200ms × 75 = 15s
+    s_scan_watch = 0;
+    ESP_LOGW(TAG, "扫描超时,强制收尾");
+    esp_wifi_scan_stop();                    // 若任务还阻塞在 scan_start 上,这会让它返回
+    s_scan_busy = false;
+    s_ap_count = 0;
+    s_state = s_scan_keep_online ? CS_NET_ONLINE : CS_NET_FAILED;
+    scpy(s_scan_msg, sizeof(s_scan_msg), "扫描超时,按确定重试");
 }
 
 int         cs_net_ap_count(void)     { return s_ap_count; }
@@ -365,6 +457,41 @@ void cs_net_forget(void)
 }
 
 // ---------------------------------------------------------------------------
+// NVS 句柄:优先用 cardid 之后的 csdata 资源分区(64KB),失败回退默认 nvs。
+// 这样 12KB 的 JSON 缓存不再挤占只有 24KB 的 nvs(那里还要放 Wi-Fi 凭证)。
+// ---------------------------------------------------------------------------
+static bool s_csdata_tried;
+static bool s_csdata_ok;
+
+static bool csdata_ready(void)
+{
+    if (s_csdata_tried) return s_csdata_ok;
+    s_csdata_tried = true;
+
+    // 先确保 NVS 子系统本身初始化(幂等),再初始化资源分区。
+    if (demo_radio_nvs_prepare() != ESP_OK) return false;
+
+    esp_err_t err = nvs_flash_init_partition(CS_NVS_PART);
+    if (err == ESP_OK) {
+        s_csdata_ok = true;
+        ESP_LOGI(TAG, "数据缓存分区 %s 就绪", CS_NVS_PART);
+    } else {
+        ESP_LOGW(TAG, "资源分区 %s 不可用(%s),回退到默认 nvs",
+                 CS_NVS_PART, esp_err_to_name(err));
+    }
+    return s_csdata_ok;
+}
+
+static esp_err_t kv_open(const char *ns, nvs_open_mode_t mode, nvs_handle_t *out)
+{
+    if (csdata_ready() &&
+        nvs_open_from_partition(CS_NVS_PART, ns, mode, out) == ESP_OK) {
+        return ESP_OK;
+    }
+    return nvs_open(ns, mode, out);
+}
+
+// ---------------------------------------------------------------------------
 // 数据源 URL(可存 NVS 覆盖,便于不改固件换源)
 // ---------------------------------------------------------------------------
 static char s_url[160];
@@ -373,7 +500,7 @@ const char *cs_data_url(void)
 {
     if (s_url[0]) return s_url;
     nvs_handle_t h;
-    if (nvs_open(CS_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
+    if (kv_open(CS_NVS_NS, NVS_READONLY, &h) == ESP_OK) {
         size_t len = sizeof(s_url);
         if (nvs_get_str(h, CS_NVS_URL_KEY, s_url, &len) != ESP_OK) s_url[0] = 0;
         nvs_close(h);
@@ -387,7 +514,7 @@ void cs_data_set_url(const char *url)
     if (!url || !url[0]) return;
     scpy(s_url, sizeof(s_url), url);
     nvs_handle_t h;
-    if (nvs_open(CS_NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+    if (kv_open(CS_NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
         nvs_set_str(h, CS_NVS_URL_KEY, s_url);
         nvs_commit(h);
         nvs_close(h);
@@ -490,7 +617,7 @@ static bool parse_matches(const char *json, cs_data_t *out)
 static esp_err_t cache_save(const char *json)
 {
     nvs_handle_t h;
-    esp_err_t err = nvs_open(CS_NVS_NS, NVS_READWRITE, &h);
+    esp_err_t err = kv_open(CS_NVS_NS, NVS_READWRITE, &h);
     if (err != ESP_OK) return err;
     err = nvs_set_str(h, CS_NVS_JSON_KEY, json);
     if (err == ESP_OK) err = nvs_commit(h);
@@ -501,7 +628,7 @@ static esp_err_t cache_save(const char *json)
 static esp_err_t cache_load(char *out, size_t cap)
 {
     nvs_handle_t h;
-    esp_err_t err = nvs_open(CS_NVS_NS, NVS_READONLY, &h);
+    esp_err_t err = kv_open(CS_NVS_NS, NVS_READONLY, &h);
     if (err != ESP_OK) return err;
     size_t len = cap;
     err = nvs_get_str(h, CS_NVS_JSON_KEY, out, &len);

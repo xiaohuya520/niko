@@ -99,8 +99,15 @@ bool           cs_net_online(void);
 const char    *cs_net_ip(void);
 const char    *cs_net_ssid(void);
 
-// 扫描(异步)。完成后 state 变 CS_NET_APLIST。
+// 扫描(异步,内部起独立任务)。完成后 state 变 CS_NET_APLIST(或 CS_NET_FAILED)。
+// 可以重复调用:正在扫时会被忽略。
 void cs_net_scan(void);
+
+// UI 侧每 200ms 调一次。扫描超过约 15s 仍未完成就强制收尾成 CS_NET_FAILED,
+// 保证界面不会永远停在"正在扫描"。
+void        cs_net_scan_watchdog(void);
+bool        cs_net_scan_busy(void);      // 扫描任务是否在跑
+const char *cs_net_scan_msg(void);       // 最近一次扫描的错误说明(空串=无)
 
 int         cs_net_ap_count(void);
 const char *cs_net_ap_ssid(int idx);

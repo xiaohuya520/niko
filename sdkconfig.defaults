@@ -7,8 +7,10 @@ CONFIG_IDF_TARGET="esp32c3"
 CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
 # 固定 8MB 镜像头，关闭 detect，便于 idf.py merge-bin。
 CONFIG_ESPTOOLPY_HEADER_FLASHSIZE_UPDATE=n
-# 3 MB 应用上限与固定保护分区保持一致。分区表保留
-# cardid@0x356000，二创不得移动或覆盖。
+# 3 MB 应用上限与固定保护分区保持一致，且 tools/verify_firmware.py 会强制校验
+# factory 必须恰好是 0x300000，所以 app 分区不能改大。分区表保留
+# cardid@0x356000，二创不得移动或覆盖；cardid 之后剩余的空闲 Flash
+# 用来放资源分区（如 csdata 数据缓存），见 partitions.csv。
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"

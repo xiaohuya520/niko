@@ -3,3 +3,7 @@ nvs,      data, nvs,     0x9000,   0x6000,
 phy_init, data, phy,     0xf000,   0x1000,
 factory,  app,  factory, 0x10000,  0x300000,
 cardid,   data, nvs,     0x356000, 0x4000,
+# cardid 之后到 8MB 还有约 4.6MB 空闲。默认 nvs 只有 24KB,还要放 Wi-Fi 凭证,
+# 12KB 的赛程 JSON 缓存挤进去太紧张;这里划 64KB 出来专门放数据。
+# tools/verify_firmware.py 明确允许在受保护的 cardid 之后追加资源分区。
+csdata,   data, nvs,     0x35A000, 0x10000,
