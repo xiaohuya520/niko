@@ -540,7 +540,7 @@ static int jput(char *dst, int cap, int n, const char *s)
     return n;
 }
 
-// SSID 进 JSON 要转义 \" 和 \\
+// SSID 进 JSON 前要转义双引号与反斜杠
 static void jesc(const char *src, char *dst, size_t cap)
 {
     size_t n = 0;
