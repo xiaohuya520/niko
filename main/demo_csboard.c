@@ -24,6 +24,7 @@
 #include "cs_net.h"
 #include "cs_assets.h"
 #include "bsp_battery.h"
+#include "esp_system.h"
 #include "lvgl.h"
 
 #include <stdio.h>
@@ -134,6 +135,7 @@ static lv_obj_t *s_conn_msg;               // 底部连接状态/错误提示
 
 // 前向声明:密码键盘 helper(kb_activate)在 rebuild() 定义之前就调用它
 static void rebuild(void);
+static const char *reset_reason_str(void);
 static void kb_refresh_sel(void);
 
 // Wi-Fi 列表行的控件缓存:上下移动只重配色,不整屏重建(消闪)
@@ -447,6 +449,25 @@ static void build_menu(void)
             lv_obj_t *cl = label(row, nt, &font_cn16, C_DIM2);
             lv_obj_align(cl, LV_ALIGN_RIGHT_MID, -10, 0);
         }
+    }
+
+    // 上次异常复位提示:白屏/重启类的现场问题,拍照这一行就能定位方向
+    const char *rr = reset_reason_str();
+    if (rr) label_at(s_body, 12, 256, rr, &font_cn16, C_RED);
+}
+
+// 复位原因转一句人话;正常上电返回 NULL(不显示)。
+// 白屏多半是"崩溃→重启",这行字直接把 PANIC/看门狗/欠压 区分开。
+static const char *reset_reason_str(void)
+{
+    switch (esp_reset_reason()) {
+    case ESP_RST_PANIC:    return "上次异常重启:程序崩溃";
+    case ESP_RST_TASK_WDT: return "上次异常重启:任务卡死";
+    case ESP_RST_INT_WDT:  return "上次异常重启:中断卡死";
+    case ESP_RST_WDT:      return "上次异常重启:看门狗超时";
+    case ESP_RST_BROWNOUT: return "上次异常重启:电压不足,请充电";
+    case ESP_RST_SW:       return "上次异常重启:软件重启";
+    default:               return NULL;   // 上电/深睡唤醒等正常情况
     }
 }
 

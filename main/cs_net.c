@@ -12,6 +12,7 @@
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
+#include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "esp_mac.h"
@@ -83,6 +84,8 @@ static char             s_scan_msg[48];   // 最近一次扫描的错误说明
 static char             s_conn_err[48];   // 最近一次连接失败的原因(中文,可上屏)
 static int              s_conn_watch;     // CONNECTING 状态的看门狗计数(防"永远连接中")
 static bool             s_deliberate;     // true=这次 DISCONNECTED 是我们自己调 disconnect 触发的,不算失败
+static int              s_auto_rtry;      // FAILED 后静默自动重连的计数(200ms 一跳)
+static bool             s_qr_active;      // 扫码配网热点是否开启(声明提前,watchdog 要用)
 
 static cs_data_t        s_data;
 static bool             s_from_net;
@@ -238,6 +241,9 @@ static void on_ip_event(void *arg, esp_event_base_t base, int32_t id, void *data
     snprintf(s_ip, sizeof(s_ip), IPSTR, IP2STR(&ev->ip_info.ip));
     s_state = CS_NET_ONLINE;
     s_reconnect = 0;
+    ESP_LOGI(TAG, "heap: free=%u max=%u",
+             (unsigned)esp_get_free_heap_size(),
+             (unsigned)esp_get_maximum_free_block_size());
     wifi_ap_record_t ap;
     if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) scpy(s_ssid, sizeof(s_ssid), (const char *)ap.ssid);
     ESP_LOGI(TAG, "已联网: %s  IP=%s", s_ssid, s_ip);
@@ -287,6 +293,11 @@ static esp_err_t wifi_bring_up(void)
     err = esp_wifi_start();
     if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) return err;
     s_wifi_started = true;
+
+    // 关掉 STA 省电(默认 modem 休眠):ESP32-C3 上省电模式容易 beacon 超时掉线,
+    // 症状是"连上了又断、反复重连"。看板设备常年插电,不差这点电流。
+    if (esp_wifi_set_ps(WIFI_PS_NONE) != ESP_OK)
+        ESP_LOGW(TAG, "set_ps(PS_NONE) 失败");
 
     // 读一下上次保存的 SSID,菜单里可以标注"上次连接"。
     wifi_config_t wc;
@@ -420,6 +431,19 @@ const char *cs_net_scan_msg(void)  { return s_scan_msg; }
 
 void cs_net_scan_watchdog(void)
 {
+    // FAILED 兜底自动重试:每隔约 30s 用已保存凭证静默重连一次。
+    // 路由器重启、信号波动这类"过一会儿自己好了"的场景,不用人去按键。
+    // 配网热点开着时不抢(手机正在配网);扫描进行中也不抢。
+    if (s_state == CS_NET_FAILED && !s_qr_active && s_prev_ssid[0] && !s_scan_busy) {
+        if (++s_auto_rtry >= 150) {          // 200ms × 150 = 30s
+            s_auto_rtry = 0;
+            ESP_LOGI(TAG, "FAILED 超时,自动重连 %s", s_prev_ssid);
+            cs_net_autoconnect();
+        }
+    } else {
+        s_auto_rtry = 0;
+    }
+
     // 连接兜底:正常连接十几秒内必有结果(GOT_IP 或 DISCONNECTED 事件),
     // 卡在 CONNECTING 超过 20 秒说明底层没动静,强制判失败,界面给出出口。
     if (s_state == CS_NET_CONNECTING) {
@@ -521,7 +545,6 @@ void cs_net_forget(void)
 // 手机相机扫码(或手动连热点)后,浏览器打开 http://192.168.4.1 选网输密码。
 // 热点工作在 APSTA 模式,STA 原有连接不受影响;配网页可反复提交,直到连上。
 // ---------------------------------------------------------------------------
-static bool           s_qr_active;
 static char           s_qr_ssid[24];
 static httpd_handle_t s_httpd;
 static const char    *QR_PASS = "12345678";
@@ -1076,15 +1099,25 @@ static void fetch_task(void *arg)
         return;
     }
 
+    // cs_data_t 约 8KB,和任务栈(8KB)一样大 —— 放栈上一进 parse_matches 就爆栈,
+    // 表现是"拉完数据整屏白一下然后重启"。必须在堆上分配。
+    cs_data_t *tmp = (cs_data_t *)malloc(sizeof(cs_data_t));
+    if (!tmp) {
+        free(buf);
+        scpy(s_fetch_msg, sizeof(s_fetch_msg), "内存不足");
+        s_fetch_state = CS_FETCH_FAIL;
+        vTaskDelete(NULL);
+        return;
+    }
+
     int len = 0;
     const char *url = cs_data_url();
     ESP_LOGI(TAG, "拉取 %s", url);
     esp_err_t err = http_get(url, buf, CS_HTTP_BUF_MAX, &len);
 
     if (err == ESP_OK) {
-        cs_data_t tmp;
-        if (parse_matches(buf, &tmp)) {
-            s_data = tmp;
+        if (parse_matches(buf, tmp)) {
+            s_data = *tmp;
             s_from_net = true;
             if (len < CS_CACHE_MAX) {
                 esp_err_t ce = cache_save(buf);
@@ -1092,7 +1125,10 @@ static void fetch_task(void *arg)
             }
             snprintf(s_fetch_msg, sizeof(s_fetch_msg), "已更新 %d 场比赛", s_data.count % 1000);
             s_fetch_state = CS_FETCH_OK;
-            ESP_LOGI(TAG, "数据已更新: %d 场, %d 字节", s_data.count, len);
+            ESP_LOGI(TAG, "数据已更新: %d 场, %d 字节, heap: free=%u max=%u",
+                     s_data.count, len,
+                     (unsigned)esp_get_free_heap_size(),
+                     (unsigned)esp_get_maximum_free_block_size());
         } else {
             scpy(s_fetch_msg, sizeof(s_fetch_msg), "数据解析失败");
             s_fetch_state = CS_FETCH_FAIL;
@@ -1103,6 +1139,7 @@ static void fetch_task(void *arg)
         ESP_LOGE(TAG, "拉取失败: %s", esp_err_to_name(err));
     }
 
+    free(tmp);
     free(buf);
     vTaskDelete(NULL);
 }
