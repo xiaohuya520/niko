@@ -61,5 +61,5 @@ jobs:
       - name: Purge jsDelivr cache
         if: steps.commit.outputs.changed == 'true'
         run: |
-          curl -s -X POST "https://purge.jsdelivr.net/gh/xiaohuya520/niko@firmware/cs_matches.json"
+          curl -s "https://purge.jsdelivr.net/gh/xiaohuya520/niko@firmware/cs_matches.json"
           echo "purged"
