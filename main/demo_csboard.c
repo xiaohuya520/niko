@@ -85,6 +85,8 @@ static int    s_live_sel;
 static int    s_list_sel;           // 战绩/预告共用
 static int    s_ap_sel;
 static bool   s_auto_fetched;       // 联网后自动拉一次
+static int    s_refresh_tick;       // 周期刷新计时(200ms/tick)
+static int    s_fetch_msg_ttl;      // 拉取成功后状态行限时显示倒计时(200ms/tick)
 
 // 筛选后的下标表
 static int s_live_idx[CS_MAX_MATCHES]; static int s_live_n;
@@ -378,6 +380,13 @@ static void update_hint(void)
         break;
     case VIEW_QR:       h = "手机扫码配网 双击/长按返回"; break;
     default:            h = "上下选键 确定输入 长按返回"; break;
+    }
+    // 拉取状态优先上屏:进行中/失败/刚成功(限时)显示状态行,让用户看到成败
+    cs_fetch_state_t fs = cs_data_fetch_state();
+    if (fs == CS_FETCH_RUNNING || fs == CS_FETCH_FAIL ||
+        (fs == CS_FETCH_OK && s_fetch_msg_ttl > 0)) {
+        const char *fm = cs_data_fetch_msg();
+        if (fm && fm[0]) h = fm;
     }
     lv_obj_t *hl = lv_obj_get_child(s_hint, 0);
     if (!hl) hl = label(s_hint, h, &font_cn16, C_DIM);
@@ -1081,6 +1090,7 @@ static void do_ok_single(void)
     case VIEW_UPCOMING:
         cs_data_fetch_reset();
         cs_data_refresh_async();
+        s_refresh_tick = 0;   // 手动刷新后重置周期计时,避免马上又自动拉
         update_hint();
         break;
 
@@ -1123,6 +1133,7 @@ static void do_ok_double(void)
     case VIEW_MENU:                          // 主菜单双击 = 刷新数据
         cs_data_fetch_reset();
         cs_data_refresh_async();
+        s_refresh_tick = 0;   // 手动刷新后重置周期计时,避免马上又自动拉
         update_hint();
         break;
     case VIEW_LIVE:
@@ -1162,6 +1173,7 @@ static void tick(lv_timer_t *t)
 {
     (void)t;
     if (s_ok_cool) s_ok_cool--;
+    if (s_fetch_msg_ttl > 0 && --s_fetch_msg_ttl == 0) update_hint();
     update_sbar();
 
     // 扫描兜底:超过 15s 没结果就强制收尾成"失败",界面绝不会永远停在扫描页
@@ -1181,11 +1193,27 @@ static void tick(lv_timer_t *t)
         // 连上即收:密码页/扫码页都自动回看板(扫码页离开时 rebuild 会顺带关热点)
         if (ns == CS_NET_ONLINE && (s_view == VIEW_PASS || s_view == VIEW_QR))
             set_view(VIEW_MENU);
-        if (ns == CS_NET_ONLINE && !s_auto_fetched) {
+    }
+
+    // 周期自动刷新:联网后首次立刻拉,之后每 5 分钟重拉,失败 30 秒重试
+    if (ns == CS_NET_ONLINE) {
+        if (!s_auto_fetched) {
             s_auto_fetched = true;
+            s_refresh_tick = 0;
             cs_data_fetch_reset();
             cs_data_refresh_async();
+        } else if (cs_data_fetch_state() != CS_FETCH_RUNNING) {
+            s_refresh_tick++;
+            int iv = (cs_data_fetch_state() == CS_FETCH_FAIL) ? 150 : 1500;   // 失败 30s 重试 / 正常 5min
+            if (s_refresh_tick >= iv) {
+                s_refresh_tick = 0;
+                cs_data_fetch_reset();
+                cs_data_refresh_async();
+            }
         }
+    } else {
+        s_auto_fetched = false;   // 断线,重连后重新首次拉
+        s_refresh_tick = 0;
     }
 
     // 扫码页底部状态行:就地刷新,不重建(重建会把二维码闪一下)
@@ -1217,6 +1245,8 @@ static void tick(lv_timer_t *t)
             rebuild_filters();
             clamp_sels();
             rebuild();
+            s_fetch_msg_ttl = 25;   // 底部显示"已更新 N 场"约 5 秒后回落操作提示
+            update_hint();
         } else {
             update_hint();
         }
@@ -1364,6 +1394,7 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
     // 确定 长按:CS Board 内层级返回(由 main.c 转发进来)
     //   主菜单 -> 回 FoloToy 官方菜单;其它页 -> 回 CS Board 主菜单
     if (ev == BSP_BTN_LONG) {
+        s_ok_cool = 3;   // 吞掉 LONG 后驱动补报的 CLICK,防弹回原二级页
         if (s_view == VIEW_MENU)      folotoy_back_to_menu();
         else                           set_view(VIEW_MENU);
         return;
