@@ -103,6 +103,13 @@ static lv_obj_t *s_wifi_lbl;
 static int       s_scan_dots;
 static int       s_ok_cool;          // 双击后的冷却计数(tick 200ms 一跳):吞掉驱动多报的 CLICK
 
+// 返回守卫:用 OK 按压序号区分"返回手势补报的 CLICK"与"用户真正的新点击"。
+//   每次 PRESS 序号 +1;双击/长按返回时记下当前序号;若随后到达的 CLICK 仍是同一按次
+//   (序号未变)= 该手势自己的补报(或残留),一律吞掉;真正新点击必先有新 PRESS(序号已变),正常放行。
+//   与时间无关,不怕 tick 抖动 / 长按按多久 / 补报延迟多久。
+static int       s_press_seq;        // OK 键每按下一次 +1
+static int       s_ret_seq = -1;     // 触发"返回上级"的那一按次序号(-1=无)
+
 // 密码输入(完整三键键盘)
 static char s_pass[34];
 static char s_target_ssid[33];
@@ -1129,6 +1136,7 @@ static void do_ok_single(void)
 static void do_ok_double(void)
 {
     s_ok_cool = 3;               // 600ms 内忽略 OK 单击,防弹回二级页
+    s_ret_seq = s_press_seq;     // 记下来这次"返回手势"的按次序号,吞掉其补报的 CLICK
     switch (s_view) {
     case VIEW_MENU:                          // 主菜单双击 = 刷新数据
         cs_data_fetch_reset();
@@ -1204,7 +1212,7 @@ static void tick(lv_timer_t *t)
             cs_data_refresh_async();
         } else if (cs_data_fetch_state() != CS_FETCH_RUNNING) {
             s_refresh_tick++;
-            int iv = (cs_data_fetch_state() == CS_FETCH_FAIL) ? 150 : 1500;   // 失败 30s 重试 / 正常 5min
+            int iv = (cs_data_fetch_state() == CS_FETCH_FAIL) ? 600 : 1500;   // 失败 2min 重试(降频,避免"不断刷新") / 正常 5min
             if (s_refresh_tick >= iv) {
                 s_refresh_tick = 0;
                 cs_data_fetch_reset();
@@ -1324,6 +1332,7 @@ void demo_csboard_exit(void)
 
 void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
 {
+    if (btn == BSP_BTN_OK && ev == BSP_BTN_PRESS) s_press_seq++;   // 每按一次 OK 序号+1,区分补报CLICK与真实新点击
     // ===== 密码键盘页:独立的完整三键语义 =====
     //   短按上/下 = 选键前进/后退(横向)   长按上/下 = 换上/下一行(纵向)
     //   确定 短按 = 输入当前键             确定 长按 = 返回网络列表
@@ -1395,12 +1404,16 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
     //   主菜单 -> 回 FoloToy 官方菜单;其它页 -> 回 CS Board 主菜单
     if (ev == BSP_BTN_LONG) {
         s_ok_cool = 3;   // 吞掉 LONG 后驱动补报的 CLICK,防弹回原二级页
+        s_ret_seq = s_press_seq;     // 记录返回手势按次序号,吞掉其补报 CLICK
         if (s_view == VIEW_MENU)      folotoy_back_to_menu();
         else                           set_view(VIEW_MENU);
         return;
     }
 
     if (ev == BSP_BTN_CLICK) {
+        // 返回手势(双击/长按)的补报 CLICK:同一按次序号未变 => 吞掉,防弹回二级页
+        if (s_ret_seq >= 0 && s_press_seq == s_ret_seq) return;
+        s_ret_seq = -1;
         if (s_ok_cool > 0) return;   // 刚双击过:驱动补报的 CLICK 一律忽略
         // 延时 320ms 再执行,给双击判定留窗口
         if (s_click_timer) {
