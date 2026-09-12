@@ -13,6 +13,8 @@
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_http_client.h"
+#include "esp_http_server.h"
+#include "esp_mac.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
@@ -80,6 +82,7 @@ static char             s_scan_msg[48];   // 最近一次扫描的错误说明
 
 static char             s_conn_err[48];   // 最近一次连接失败的原因(中文,可上屏)
 static int              s_conn_watch;     // CONNECTING 状态的看门狗计数(防"永远连接中")
+static bool             s_deliberate;     // true=这次 DISCONNECTED 是我们自己调 disconnect 触发的,不算失败
 
 static cs_data_t        s_data;
 static bool             s_from_net;
@@ -201,6 +204,9 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
         // 配网/扫描期间不自动重连:否则 esp_wifi_connect() 会把正在跑的扫描打断,
         // 表现就是"一直停在扫描页"。扫描任务自己会在扫完后让用户重新连接。
         if (s_scan_busy) break;
+        // 我们主动断开(cs_net_connect 换目标前的 disconnect)不记失败也不重试,
+        // 紧跟着的 esp_wifi_connect() 已经按新配置发起连接。
+        if (s_deliberate) { s_deliberate = false; break; }
         if (s_state == CS_NET_CONNECTING || s_state == CS_NET_ONLINE) {
             conn_err_set(reason);
             if (s_reconnect < 3) {
@@ -421,6 +427,9 @@ void cs_net_scan_watchdog(void)
         s_conn_watch = 0;
         s_state = CS_NET_FAILED;
         if (!s_conn_err[0]) scpy(s_conn_err, sizeof(s_conn_err), "连接超时,请重试");
+        // 把底层还在跑的连接尝试掐掉,免得它几秒后又把状态翻回来
+        s_deliberate = true;
+        esp_wifi_disconnect();
         ESP_LOGW(TAG, "连接超时,强制判失败");
         return;
     }
@@ -473,9 +482,10 @@ void cs_net_connect(const char *ssid, const char *password)
     }
     scpy(s_ssid, sizeof(s_ssid), ssid);
     scpy(s_prev_ssid, sizeof(s_prev_ssid), ssid);
-    // 先改状态再断开:这次 disconnect 事件会被当成"重连信号"按新配置发起连接,
-    // 紧跟的 esp_wifi_connect() 是双保险(如果已经不在关联状态,事件不会来)。
+    // 先改状态再断开:s_deliberate 让这次 disconnect 的 DISCONNECTED 事件被
+    // 事件处理器忽略(不算失败、不抢跑重试),紧跟的 esp_wifi_connect() 按新配置发起连接。
     s_state = CS_NET_CONNECTING;
+    s_deliberate = true;
     esp_wifi_disconnect();
     esp_wifi_connect();
     ESP_LOGI(TAG, "正在连接 %s", ssid);
@@ -504,6 +514,269 @@ void cs_net_forget(void)
     s_ip[0] = 0;
     if (s_wifi_started) esp_wifi_disconnect();
     s_state = CS_NET_READY;
+}
+
+// ---------------------------------------------------------------------------
+// 扫码配网:设备起热点 FoloToy-CS-XXXX(WPA2,密码 12345678),屏幕显示二维码,
+// 手机相机扫码(或手动连热点)后,浏览器打开 http://192.168.4.1 选网输密码。
+// 热点工作在 APSTA 模式,STA 原有连接不受影响;配网页可反复提交,直到连上。
+// ---------------------------------------------------------------------------
+static bool           s_qr_active;
+static char           s_qr_ssid[24];
+static httpd_handle_t s_httpd;
+static const char    *QR_PASS = "12345678";
+
+bool        cs_net_qr_active(void) { return s_qr_active; }
+const char *cs_net_qr_ssid(void)   { return s_qr_ssid; }
+const char *cs_net_qr_pass(void)   { return QR_PASS; }
+const char *cs_net_qr_url(void)    { return "http://192.168.4.1"; }
+
+// 往 dst[n] 追加字符串,返回新的 n(自带截断,不触发 -Wformat-truncation)
+static int jput(char *dst, int cap, int n, const char *s)
+{
+    if (!s) s = "";
+    while (*s && n < cap - 1) dst[n++] = *s++;
+    dst[n] = 0;
+    return n;
+}
+
+// SSID 进 JSON 要转义 \" 和 \\
+static void jesc(const char *src, char *dst, size_t cap)
+{
+    size_t n = 0;
+    for (; *src && n + 2 < cap; src++) {
+        if (*src == '"' || *src == '\\') dst[n++] = '\\';
+        dst[n++] = *src;
+    }
+    dst[n] = 0;
+}
+
+// "a=1&b=2" 里取 key 的值并做 URL 解码(+ 和 %XX)
+static void url_decode(char *s)
+{
+    char *w = s;
+    while (*s) {
+        if (*s == '%' && s[1] && s[2]) {
+            char hx[3] = { s[1], s[2], 0 };
+            *w++ = (char)strtol(hx, NULL, 16);
+            s += 3;
+        } else if (*s == '+') {
+            *w++ = ' '; s++;
+        } else {
+            *w++ = *s++;
+        }
+    }
+    *w = 0;
+}
+
+static bool form_field(const char *body, const char *key, char *out, size_t cap)
+{
+    size_t kl = strlen(key);
+    const char *p = body;
+    while (p && *p) {
+        if (strncmp(p, key, kl) == 0 && p[kl] == '=') {
+            const char *e = strchr(p + kl + 1, '&');
+            size_t n = e ? (size_t)(e - p - kl - 1) : strlen(p + kl + 1);
+            if (n >= cap) n = cap - 1;
+            memcpy(out, p + kl + 1, n);
+            out[n] = 0;
+            url_decode(out);
+            return true;
+        }
+        p = strchr(p, '&');
+        if (p) p++;
+    }
+    return false;
+}
+
+// 配网页(内嵌 HTML,全部用单引号/无引号属性,方便放进 C 字符串)
+static const char PAGE_HTML[] =
+"<!doctype html><html><head><meta charset=utf-8>"
+"<meta name=viewport content=width=device-width,initial-scale=1>"
+"<title>FoloToy 配网</title></head>"
+"<body style='font-family:sans-serif;max-width:420px;margin:24px auto'>"
+"<h3>CS 看板 Wi-Fi 配网</h3>"
+"<label>无线网络<br><input id=ssid list=apl style=width:100%;height:36px></label>"
+"<datalist id=apl></datalist>"
+"<label>密码<br><input id=pwd type=password style=width:100%;height:36px></label>"
+"<p><button onclick=go() style=width:100%;height:44px;font-size:18px>连接</button>"
+"<button onclick=rescan() style=width:100%;height:36px>重新扫描</button></p>"
+"<p id=msg>正在读取网络列表...</p>"
+"<script>"
+"function ld(){fetch('/aplist').then(r=>r.json()).then(a=>{"
+"apl.innerHTML='';a.forEach(function(x){var o=document.createElement('option');"
+"o.value=x[0];o.textContent=x[0]+' ('+x[1]+'dBm'+(x[2]?',加密':'')+')';apl.appendChild(o);});"
+"msg.textContent='请选择网络并输入密码';});}"
+"function rescan(){msg.textContent='扫描中...';fetch('/scan').then(function(){"
+"setTimeout(ld,4000);});}"
+"function go(){msg.textContent='发送中...';"
+"fetch('/connect',{method:'POST',"
+"headers:{'Content-Type':'application/x-www-form-urlencoded'},"
+"body:'ssid='+encodeURIComponent(ssid.value)+'&pwd='+encodeURIComponent(pwd.value)})"
+".then(function(){poll();});}"
+"function poll(){fetch('/status').then(r=>r.json()).then(function(j){"
+"msg.textContent=j.cn;"
+"if(j.state=='online')msg.textContent='已连上 '+j.ssid+' ,可以关闭此页';"
+"else setTimeout(poll,2000);});}"
+"ld();"
+"</script></body></html>";
+
+static esp_err_t h_root(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    return httpd_resp_send(req, PAGE_HTML, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t h_aplist(httpd_req_t *req)
+{
+    static char jb[1024];
+    int n = 0;
+    n = jput(jb, sizeof(jb), n, "[");
+    for (int i = 0; i < (int)s_ap_count; i++) {
+        char esc[70];
+        jesc((const char *)s_aps[i].ssid, esc, sizeof(esc));
+        if (n > (int)sizeof(jb) - 90) break;
+        char num[24];
+        snprintf(num, sizeof(num), "%d,%d", s_aps[i].rssi,
+                 s_aps[i].authmode != WIFI_AUTH_OPEN ? 1 : 0);
+        if (i) n = jput(jb, sizeof(jb), n, ",");
+        n = jput(jb, sizeof(jb), n, "[\"");
+        n = jput(jb, sizeof(jb), n, esc);
+        n = jput(jb, sizeof(jb), n, "\",");
+        n = jput(jb, sizeof(jb), n, num);
+        n = jput(jb, sizeof(jb), n, "]");
+    }
+    n = jput(jb, sizeof(jb), n, "]");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, jb, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t h_scan(httpd_req_t *req)
+{
+    // CONNECTING 时不扫(会把正在发起的连接断掉),其余状态都允许重扫
+    if (!s_scan_busy && s_state != CS_NET_SCANNING && s_state != CS_NET_CONNECTING)
+        cs_net_scan();
+    return httpd_resp_send(req, "ok", HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t h_status(httpd_req_t *req)
+{
+    static char jb[192];
+    const char *cn = "";
+    switch (s_state) {
+    case CS_NET_READY:      cn = "等待选择网络";       break;
+    case CS_NET_SCANNING:   cn = "正在扫描附近网络..."; break;
+    case CS_NET_APLIST:     cn = "请选择网络";         break;
+    case CS_NET_CONNECTING: cn = "正在连接,请稍候...";  break;
+    case CS_NET_ONLINE:     cn = "已连上网络";         break;
+    case CS_NET_FAILED:     cn = s_conn_err[0] ? s_conn_err : "连接失败,可在网页重试"; break;
+    default:                cn = "等待手机扫码连接热点"; break;
+    }
+    const char *st = "off";
+    if (s_state == CS_NET_SCANNING)        st = "scanning";
+    else if (s_state == CS_NET_CONNECTING) st = "connecting";
+    else if (s_state == CS_NET_ONLINE)     st = "online";
+    else if (s_state == CS_NET_FAILED)     st = "failed";
+
+    char esc[70];
+    jesc(s_ssid, esc, sizeof(esc));
+    int n = 0;
+    n = jput(jb, sizeof(jb), n, "{\"state\":\"");
+    n = jput(jb, sizeof(jb), n, st);
+    n = jput(jb, sizeof(jb), n, "\",\"cn\":\"");
+    n = jput(jb, sizeof(jb), n, cn);
+    n = jput(jb, sizeof(jb), n, "\",\"ssid\":\"");
+    n = jput(jb, sizeof(jb), n, esc);
+    n = jput(jb, sizeof(jb), n, "\",\"ip\":\"");
+    n = jput(jb, sizeof(jb), n, s_ip);
+    n = jput(jb, sizeof(jb), n, "\"}");
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, jb, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t h_connect(httpd_req_t *req)
+{
+    if (req->content_len <= 0 || req->content_len > 200)
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "参数长度不对");
+    char body[208];
+    int got = httpd_req_recv(req, body, req->content_len);
+    if (got <= 0) return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "读取失败");
+    body[got] = 0;
+
+    char ssid[33], pwd[65];
+    if (!form_field(body, "ssid", ssid, sizeof(ssid)) || !ssid[0])
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "缺少网络名称");
+    if (!form_field(body, "pwd", pwd, sizeof(pwd))) pwd[0] = 0;
+
+    cs_net_connect(ssid, pwd);
+    return httpd_resp_send(req, "ok", HTTPD_RESP_USE_STRLEN);
+}
+
+bool cs_net_qr_start(void)
+{
+    if (s_qr_active) return true;
+    if (!s_wifi_started && wifi_bring_up() != ESP_OK) return false;
+
+    // AP netif 只建一次(与 STA netif 并存)
+    static bool s_ap_netif;
+    if (!s_ap_netif) {
+        if (!esp_netif_create_default_wifi_ap()) return false;
+        s_ap_netif = true;
+    }
+    if (esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK) return false;
+
+    // 热点名带 MAC 尾巴,多台设备互不冲突
+    uint8_t mac[6] = { 0 };
+    esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+    snprintf(s_qr_ssid, sizeof(s_qr_ssid), "FoloToy-CS-%02X%02X",
+             mac[4] % 256, mac[5] % 256);
+
+    wifi_config_t ap;
+    memset(&ap, 0, sizeof(ap));
+    scpy((char *)ap.ap.ssid, sizeof(ap.ap.ssid), s_qr_ssid);
+    ap.ap.ssid_len = (uint8_t)strlen(s_qr_ssid);
+    scpy((char *)ap.ap.password, sizeof(ap.ap.password), QR_PASS);
+    ap.ap.channel = 6;
+    ap.ap.max_connection = 2;
+    ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    if (esp_wifi_set_config(WIFI_IF_AP, &ap) != ESP_OK) return false;
+
+    if (!s_httpd) {
+        httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
+        hc.stack_size = 6144;
+        hc.lru_purge_enable = true;
+        if (httpd_start(&s_httpd, &hc) != ESP_OK) { s_httpd = NULL; return false; }
+        static const httpd_uri_t URIS[] = {
+            { "/",       HTTP_GET,  h_root,    NULL },
+            { "/aplist", HTTP_GET,  h_aplist,  NULL },
+            { "/scan",   HTTP_GET,  h_scan,    NULL },
+            { "/status", HTTP_GET,  h_status,  NULL },
+            { "/connect",HTTP_POST, h_connect, NULL },
+        };
+        for (size_t i = 0; i < sizeof(URIS) / sizeof(URIS[0]); i++)
+            httpd_register_uri_handler(s_httpd, &URIS[i]);
+    }
+
+    s_qr_active = true;
+    ESP_LOGI(TAG, "配网热点已开启: %s  密码 %s  地址 %s",
+             s_qr_ssid, QR_PASS, cs_net_qr_url());
+    return true;
+}
+
+void cs_net_qr_stop(void)
+{
+    if (!s_qr_active && !s_httpd) return;
+    if (s_httpd) { httpd_stop(s_httpd); s_httpd = NULL; }
+    // 回到纯 STA 模式。若切模式把原连接甩掉了,这里负责重新发起连接
+    // (事件里的 DISCONNECTED 已被 s_deliberate 挡掉,不会走重试计数)。
+    s_deliberate = true;
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    if (s_state == CS_NET_ONLINE || s_state == CS_NET_CONNECTING) {
+        s_deliberate = false;      // 接下来若真断开,按正常失败/重试处理
+        esp_wifi_connect();
+    }
+    s_qr_active = false;
+    ESP_LOGI(TAG, "配网热点已关闭");
 }
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,8 @@
 // 按键分工:
 //   主菜单 : UP/DOWN 选条目 | OK 单击 进入 | OK 双击 刷新数据
 //   列表页 : UP/DOWN 翻条目 | OK 单击 刷新   | OK 双击 返回主菜单
-//   网络页 : UP/DOWN 选 AP   | OK 单击 连接   | OK 长按 返回主菜单
+//   网络页 : UP/DOWN 选 AP   | OK 单击 连接   | OK 双击 扫码配网 | OK 长按 回主菜单
+//   扫码页 : 屏上二维码给手机扫,网页(192.168.4.1)里选网输密码;OK 长按回主菜单
 //   密码页 : 短按上/下 选键前进/后退 | 长按上/下 换上/下一行
 //            确定 短按 输入当前键 | 确定 长按 返回网络页
 //            (功能行:模式切换 / 空格 / 删除 / 连接)
@@ -58,6 +59,7 @@ typedef enum {
     VIEW_UPCOMING,
     VIEW_WIFI,
     VIEW_PASS,
+    VIEW_QR,        // 扫码配网:屏上出二维码,手机网页里选网输密码
 } view_t;
 
 // ---------------------------------------------------------------------------
@@ -133,6 +135,15 @@ static lv_obj_t *s_conn_msg;               // 底部连接状态/错误提示
 // 前向声明:密码键盘 helper(kb_activate)在 rebuild() 定义之前就调用它
 static void rebuild(void);
 static void kb_refresh_sel(void);
+
+// Wi-Fi 列表行的控件缓存:上下移动只重配色,不整屏重建(消闪)
+#define WIFI_ROWS 6
+static lv_obj_t *s_roww[WIFI_ROWS];    // 每行容器
+static lv_obj_t *s_rowlbl[WIFI_ROWS];  // 每行 SSID 标签
+static int       s_row_top;            // 当前窗口显示的第一行下标
+
+// 扫码配网页的底部状态行(tick 里就地刷新)
+static lv_obj_t *s_qr_status;
 
 // 主菜单条目
 static const struct { const char *label; uint32_t acc; } MENU[] = {
@@ -359,9 +370,10 @@ static void update_hint(void)
     case VIEW_UPCOMING: h = "上下翻动 确定刷新 双击返回"; break;
     case VIEW_WIFI:
         // 列表为空(扫描中/失败)时,"确定连接"是误导 —— 这时候确定键是"重新扫描"
-        h = (cs_net_ap_count() > 0) ? "上下选择 确定连接 长按返回"
+        h = (cs_net_ap_count() > 0) ? "上下选择 确定连接 双击扫码"
                                     : "确定重新扫描 长按返回";
         break;
+    case VIEW_QR:       h = "手机扫码配网 长按返回"; break;
     default:            h = "上下选键 确定输入 长按返回"; break;
     }
     lv_obj_t *hl = lv_obj_get_child(s_hint, 0);
@@ -657,18 +669,24 @@ static void build_wifi(void)
         }
         label_at(list, 48, 92, msg, &font_cn16, mc);
         label_at(list, 48, 122, sub, &font_cn16, C_DIM2);
+        memset(s_roww, 0, sizeof(s_roww));      // 没建行,别留悬空指针
+        memset(s_rowlbl, 0, sizeof(s_rowlbl));
         return;
     }
     if (s_ap_sel >= n) s_ap_sel = 0;
 
     int top = (s_ap_sel >= 6) ? s_ap_sel - 5 : 0;   // 简易滚动窗口
-    for (int i = 0; i < 6; i++) {
+    s_row_top = top;
+    memset(s_roww, 0, sizeof(s_roww));
+    memset(s_rowlbl, 0, sizeof(s_rowlbl));
+    for (int i = 0; i < WIFI_ROWS; i++) {
         int k = top + i;
         if (k >= n) break;
         int y = 6 + i * 36;
         bool sel = (k == s_ap_sel);
 
         lv_obj_t *row = box(list, 5, y, 214, 32, sel ? C_SEL : C_CARD, 5);
+        s_roww[i] = row;
         if (sel) {
             lv_obj_set_style_border_width(row, 1, 0);
             lv_obj_set_style_border_color(row, lv_color_hex(C_BLUE), 0);
@@ -688,7 +706,7 @@ static void build_wifi(void)
 
         char ss[40];
         trunc_u8(ss, sizeof(ss), cs_net_ap_ssid(k), 8);
-        label_at(row, 48, 8, ss, &font_cn16, sel ? C_TEXT : C_DIM);
+        s_rowlbl[i] = label_at(row, 48, 8, ss, &font_cn16, sel ? C_TEXT : C_DIM);
 
         if (strcmp(cs_net_ap_ssid(k), cs_net_ap_prev_ssid()) == 0) {
             lv_obj_t *sv = label(row, "已存", &font_cn16, C_GRN);
@@ -928,11 +946,66 @@ static void build_pass(void)
     conn_msg_refresh();
 }
 
+// Wi-Fi 列表选中行就地重配色(容器底色/边框 + SSID 文字色),不重建整屏
+static void wifi_sel_refresh(void)
+{
+    int n = cs_net_ap_count();
+    for (int i = 0; i < WIFI_ROWS; i++) {
+        int k = s_row_top + i;
+        lv_obj_t *row = s_roww[i];
+        if (!row || k >= n) break;
+        bool sel = (k == s_ap_sel);
+        lv_obj_set_style_bg_color(row, lv_color_hex(sel ? C_SEL : C_CARD), 0);
+        lv_obj_set_style_border_width(row, sel ? 1 : 0, 0);
+        if (sel) lv_obj_set_style_border_color(row, lv_color_hex(C_BLUE), 0);
+        if (s_rowlbl[i])
+            lv_obj_set_style_text_color(s_rowlbl[i],
+                                        lv_color_hex(sel ? C_TEXT : C_DIM), 0);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 视图 7:扫码配网
+// 屏上出二维码(WIFI:T:WPA;S:热点;P:密码;;),手机相机扫码自动连上热点,
+// 再打开 192.168.4.1 在网页里选网输密码 —— 替代三键键盘,快一个数量级。
+// ---------------------------------------------------------------------------
+static void build_qr(void)
+{
+    lv_obj_t *head = box(s_body, 8, 4, 224, 24, C_CARD, 6);
+    label_at(head, 10, 2, "扫码配网", &font_cn16, C_YEL);
+
+#if LV_USE_QRCODE
+    char payload[80];
+    snprintf(payload, sizeof(payload), "WIFI:T:WPA;S:%s;P:%s;;",
+             cs_net_qr_ssid(), cs_net_qr_pass());
+    lv_obj_t *qr = lv_qrcode_create(s_body);
+    lv_qrcode_set_size(qr, 140);
+    lv_qrcode_set_dark_color(qr, lv_color_hex(0x11151B));
+    lv_qrcode_set_light_color(qr, lv_color_hex(0xF2F4F6));
+    lv_qrcode_update(qr, payload, (uint32_t)strlen(payload));
+    lv_obj_align(qr, LV_ALIGN_TOP_MID, 0, 34);
+#endif
+
+    label_at(s_body, 8, 178, "手机相机扫一扫,自动连上热点", &font_cn16, C_TEXT);
+    label_at(s_body, 8, 198, "然后浏览器打开 192.168.4.1", &font_cn16, C_TEXT);
+    label_at(s_body, 8, 218, "在网页里选 WiFi 输密码", &font_cn16, C_DIM);
+    // 扫不了码也能手动连:热点名/密码直接给出来
+    char ap[52];
+    snprintf(ap, sizeof(ap), "热点 %s 密码 %s", cs_net_qr_ssid(), cs_net_qr_pass());
+    label_fit(s_body, 8, 240, 224, 18, ap, &font_cn16, C_DIM2, LV_TEXT_ALIGN_LEFT);
+
+    s_qr_status = label_w(s_body, 0, 258, 224, "", &font_cn16, C_DIM,
+                          LV_TEXT_ALIGN_CENTER);
+}
+
 // ---------------------------------------------------------------------------
 // 视图切换与重建
 // ---------------------------------------------------------------------------
 static void rebuild(void)
 {
+    // 离开配网页就把热点和配网服务收掉(在任何 set_view 路径上都生效)
+    if (s_view != VIEW_QR && cs_net_qr_active()) cs_net_qr_stop();
+    s_qr_status = NULL;
     if (s_body) {
         lv_obj_delete(s_body);
         s_body = NULL;
@@ -949,6 +1022,7 @@ static void rebuild(void)
     case VIEW_HISTORY:  build_list(false);     break;
     case VIEW_UPCOMING: build_list(true);      break;
     case VIEW_WIFI:     build_wifi();          break;
+    case VIEW_QR:       build_qr();            break;
     default:            build_pass();          break;
     }
     update_hint();
@@ -1033,7 +1107,12 @@ static void do_ok_double(void)
         set_view(VIEW_MENU);
         break;
     case VIEW_WIFI:
-        set_view(VIEW_MENU);
+        // 双击 = 扫码配网(推荐);长按 OK 才回主菜单
+        if (cs_net_qr_start()) {
+            set_view(VIEW_QR);
+        } else {
+            set_view(VIEW_MENU);   // 起热点失败就地返回,状态栏看得见网络状态
+        }
         break;
     default:                                 // 密码页 -> 回 AP 列表
         set_view(VIEW_WIFI);
@@ -1070,12 +1149,30 @@ static void tick(lv_timer_t *t)
     if (ns != s_last_net) {
         s_last_net = ns;
         if (s_view == VIEW_WIFI || s_view == VIEW_PASS || s_view == VIEW_MENU) rebuild();
-        if (ns == CS_NET_ONLINE && s_view == VIEW_PASS) set_view(VIEW_MENU);  // 连上即回看板
+        // 连上即收:密码页/扫码页都自动回看板(扫码页离开时 rebuild 会顺带关热点)
+        if (ns == CS_NET_ONLINE && (s_view == VIEW_PASS || s_view == VIEW_QR))
+            set_view(VIEW_MENU);
         if (ns == CS_NET_ONLINE && !s_auto_fetched) {
             s_auto_fetched = true;
             cs_data_fetch_reset();
             cs_data_refresh_async();
         }
+    }
+
+    // 扫码页底部状态行:就地刷新,不重建(重建会把二维码闪一下)
+    if (s_view == VIEW_QR && s_qr_status) {
+        const char *txt;
+        uint32_t col = C_DIM;
+        switch (ns) {
+        case CS_NET_CONNECTING: txt = "手机端连接中,请稍候"; col = C_YEL; break;
+        case CS_NET_ONLINE:     txt = "已联网!正在返回看板"; col = C_GRN; break;
+        case CS_NET_FAILED:     txt = cs_net_conn_err()[0] ? cs_net_conn_err()
+                                     : "连接失败,可在网页里重试"; col = C_RED; break;
+        case CS_NET_SCANNING:   txt = "正在扫描附近网络";     break;
+        default:                txt = "等待手机扫码连接热点";  break;
+        }
+        lv_label_set_text(s_qr_status, txt);
+        lv_obj_set_style_text_color(s_qr_status, lv_color_hex(col), 0);
     }
 
     int n = cs_net_ap_count();
@@ -1154,6 +1251,7 @@ void demo_csboard_exit(void)
 {
     if (s_click_timer) { lv_timer_delete(s_click_timer); s_click_timer = NULL; }
     if (s_timer) { lv_timer_delete(s_timer); s_timer = NULL; }
+    cs_net_qr_stop();
     cs_net_shutdown();
     if (s_scr) {
         lv_obj_delete(s_scr);
@@ -1215,8 +1313,13 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
         case VIEW_WIFI: {
             int n = cs_net_ap_count();
             if (n > 0) {
-                s_ap_sel = (s_ap_sel + n + dir) % n;
-                rebuild();
+                int ns2 = (s_ap_sel + n + dir) % n;
+                // 新选中行还在当前窗口内就只重配色;窗口要滚动了才重建(消闪)
+                bool inwin = s_roww[0] && ns2 >= s_row_top && ns2 <= s_row_top + WIFI_ROWS - 1
+                             && ns2 < n;
+                s_ap_sel = ns2;
+                if (inwin) wifi_sel_refresh();
+                else       rebuild();
             }
             break;
         }

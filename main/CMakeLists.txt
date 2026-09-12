@@ -16,5 +16,5 @@ idf_component_register(
          "demo_csboard.c"
     INCLUDE_DIRS "."
     REQUIRES bsp bt esp_event esp_hw_support esp_netif esp_partition esp_timer esp_wifi
-             nvs_flash esp_http_client json mbedtls esp-tls spi_flash
+             nvs_flash esp_http_client esp_http_server json mbedtls esp-tls spi_flash
 )

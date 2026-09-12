@@ -124,6 +124,16 @@ void cs_net_connect(const char *ssid, const char *password);
 void cs_net_autoconnect(void);
 void cs_net_forget(void);                // 清除保存的凭证
 
+// ---- 扫码配网:设备开热点 + 手机网页配网 ----
+// 屏幕二维码内容: WIFI:T:WPA;S:<热点名>;P:<热点密码>;; 手机扫码自动连热点,
+// 再用浏览器打开 cs_net_qr_url() 选家里的 WiFi 输密码(替代三键键盘)。
+bool        cs_net_qr_start(void);       // 开热点和配网服务(幂等);false=失败
+void        cs_net_qr_stop(void);        // 关热点和配网服务(离开配网页时调)
+bool        cs_net_qr_active(void);
+const char *cs_net_qr_ssid(void);        // 热点名称(如 FoloToy-CS-A3F1)
+const char *cs_net_qr_pass(void);        // 热点密码(12345678)
+const char *cs_net_qr_url(void);         // 配网地址 http://192.168.4.1
+
 // ---------------- 数据源 ----------------
 const char *cs_data_url(void);
 void        cs_data_set_url(const char *url);   // 保存到 NVS
