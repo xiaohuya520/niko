@@ -11,7 +11,7 @@
 //   主菜单 : UP/DOWN 选条目 | OK 单击 进入 | OK 双击 刷新数据
 //   列表页 : UP/DOWN 翻条目 | OK 单击 刷新   | OK 双击 返回主菜单
 //   网络页 : UP/DOWN 选 AP   | OK 单击 连接   | OK 双击 扫码配网 | OK 长按 回主菜单
-//   扫码页 : 屏上二维码给手机扫,网页(192.168.4.1)里选网输密码;OK 长按回主菜单
+//   扫码页 : 屏上二维码给手机扫,网页(192.168.4.1)里选网输密码;OK 双击/长按 回主菜单
 //   密码页 : 短按上/下 选键前进/后退 | 长按上/下 换上/下一行
 //            确定 短按 输入当前键 | 确定 长按 返回网络页
 //            (功能行:模式切换 / 空格 / 删除 / 连接)
@@ -99,6 +99,7 @@ static int              s_bat_tick;
 // 网络页标题标签(扫描时让省略号动起来,一眼能看出界面没死机)+ 动画计数
 static lv_obj_t *s_wifi_lbl;
 static int       s_scan_dots;
+static int       s_ok_cool;          // 双击后的冷却计数(tick 200ms 一跳):吞掉驱动多报的 CLICK
 
 // 密码输入(完整三键键盘)
 static char s_pass[34];
@@ -375,7 +376,7 @@ static void update_hint(void)
         h = (cs_net_ap_count() > 0) ? "上下选择 确定连接 双击扫码"
                                     : "确定重新扫描 长按返回";
         break;
-    case VIEW_QR:       h = "手机扫码配网 长按返回"; break;
+    case VIEW_QR:       h = "手机扫码配网 双击/长按返回"; break;
     default:            h = "上下选键 确定输入 长按返回"; break;
     }
     lv_obj_t *hl = lv_obj_get_child(s_hint, 0);
@@ -1117,6 +1118,7 @@ static void do_ok_single(void)
 
 static void do_ok_double(void)
 {
+    s_ok_cool = 3;               // 600ms 内忽略 OK 单击,防弹回二级页
     switch (s_view) {
     case VIEW_MENU:                          // 主菜单双击 = 刷新数据
         cs_data_fetch_reset();
@@ -1136,8 +1138,12 @@ static void do_ok_double(void)
             set_view(VIEW_MENU);   // 起热点失败就地返回,状态栏看得见网络状态
         }
         break;
-    default:                                 // 密码页 -> 回 AP 列表
-        set_view(VIEW_WIFI);
+    case VIEW_QR:
+    case VIEW_PASS:
+    default:
+        // 扫码页/密码页双击都回主菜单(此前扫码页落在"回 AP 列表"的旧分支上,
+        // 用户双击返回却被带回二级页面)
+        set_view(VIEW_MENU);
         break;
     }
 }
@@ -1155,6 +1161,7 @@ static void click_timer_cb(lv_timer_t *t)
 static void tick(lv_timer_t *t)
 {
     (void)t;
+    if (s_ok_cool) s_ok_cool--;
     update_sbar();
 
     // 扫描兜底:超过 15s 没结果就强制收尾成"失败",界面绝不会永远停在扫描页
@@ -1363,6 +1370,7 @@ void demo_csboard_key(bsp_btn_t btn, bsp_btn_ev_t ev)
     }
 
     if (ev == BSP_BTN_CLICK) {
+        if (s_ok_cool > 0) return;   // 刚双击过:驱动补报的 CLICK 一律忽略
         // 延时 320ms 再执行,给双击判定留窗口
         if (s_click_timer) {
             lv_timer_reset(s_click_timer);
