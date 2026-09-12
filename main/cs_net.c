@@ -20,6 +20,7 @@
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 #include "esp_sntp.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_wifi_default.h"
 #include "freertos/FreeRTOS.h"
@@ -243,7 +244,7 @@ static void on_ip_event(void *arg, esp_event_base_t base, int32_t id, void *data
     s_reconnect = 0;
     ESP_LOGI(TAG, "heap: free=%u max=%u",
              (unsigned)esp_get_free_heap_size(),
-             (unsigned)esp_get_maximum_free_block_size());
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
     wifi_ap_record_t ap;
     if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) scpy(s_ssid, sizeof(s_ssid), (const char *)ap.ssid);
     ESP_LOGI(TAG, "已联网: %s  IP=%s", s_ssid, s_ip);
@@ -1128,7 +1129,7 @@ static void fetch_task(void *arg)
             ESP_LOGI(TAG, "数据已更新: %d 场, %d 字节, heap: free=%u max=%u",
                      s_data.count, len,
                      (unsigned)esp_get_free_heap_size(),
-                     (unsigned)esp_get_maximum_free_block_size());
+                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT));
         } else {
             scpy(s_fetch_msg, sizeof(s_fetch_msg), "数据解析失败");
             s_fetch_state = CS_FETCH_FAIL;
