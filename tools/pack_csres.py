@@ -49,7 +49,9 @@ LOGO20_EDGE = 20
 LOGO48_BYTES = LOGO48_EDGE * LOGO48_EDGE * 2
 LOGO20_BYTES = LOGO20_EDGE * LOGO20_EDGE * 2
 
-HEX_BYTE_RE = re.compile(r"0x([0-9A-Fa-f]{2})")
+# lv_font_conv 输出的 C 数组里,小于 16 的值写成单十六进制位(如 0x0 / 0x7),
+# 因此必须匹配 1~2 位,用 {2} 会把它们静默丢弃,导致字体位图被截断、中文乱码。
+HEX_BYTE_RE = re.compile(r"0x([0-9A-Fa-f]{1,2})")
 
 
 # ------------------------------------------------------------------ 解析
