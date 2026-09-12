@@ -1089,7 +1089,8 @@ static void do_ok_single(void)
     }
 
     case VIEW_PASS:
-        break;   // 密码页的确定键在 demo_csboard_key() 里独立处理
+    case VIEW_QR:
+        break;   // 密码页的确定键在 demo_csboard_key() 里独立处理;扫码页确定键无操作
     }
 }
 
