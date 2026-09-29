@@ -2,9 +2,9 @@ name: update-matches
 
 # 定时抓取 CS2 赛程/实时比分,生成 cs_matches.json 提交到 firmware 分支。
 # 注意:GitHub 的 schedule 只认默认分支(main),但本工作流的实际操作全部指向 firmware。
+# 【2026-09-29 停用定时】Sofascore 对 GitHub Actions 数据中心 IP 一律 403，
+# 定时跑只会每 10 分钟刷一条失败记录；保留手动触发，换到可用比分源后再开。
 on:
-  schedule:
-    - cron: "*/10 * * * *"      # 每 10 分钟一次(实际可能有几分钟抖动)
   workflow_dispatch: {}          # 支持手动触发(首次填充数据用)
 
 permissions:

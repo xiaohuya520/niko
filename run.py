@@ -33,6 +33,10 @@ API = "https://liquipedia.net/counterstrike/api.php?"
 # 新数据至少要达到旧数据的这个比例，才允许覆盖写入
 MIN_KEEP = 0.8
 
+# event.json（赛事中心板块）最大年龄：超过才重新抓取，避免每 30 分钟白跑一遍
+# 赛事页（赛程/分支图变化慢；进行中比赛的比分由维基维护者更新，2 小时粒度够用）
+EVENT_MAX_AGE_HOURS = 2
+
 # 需要抓取的 Liquipedia 赛事页（Major 拆成主页面 + Stage_3 + Playoffs）
 PAGES = [
     "BLAST/Open/2025/Fall",
@@ -85,8 +89,61 @@ def count_matches(path):
         return 0
 
 
+def event_age_hours(path):
+    """event.json 的年龄（小时）；读不到返回一个大数。"""
+    try:
+        d = json.loads(path.read_text(encoding="utf-8"))
+        t = d.get("updated", "")
+        t = t.split("+")[0].split("Z")[0]          # 去时区尾巴
+        dt = datetime.datetime.fromisoformat(t)
+        return (datetime.datetime.now(dt.timezone.utc) - dt).total_seconds() / 3600
+    except Exception:                   # noqa: BLE001
+        return 1e9
+
+
+def refresh_event():
+    """刷新 event.json（赛事中心板块：分组/分支图/赛程）。
+
+    fetch_event 优先读 _cache 缓存，Actions 上没有缓存就走网络（自带 32s 限流间隔）。
+    防劣化守卫：新赛事数比旧文件少时回滚旧文件 —— 宁可旧也不要清空板块。
+    """
+    try:
+        import fetch_event              # 仓库根目录里，仅标准库
+        old = ROOT / "event.json"
+        old_n = 0
+        backup = ""
+        if old.exists():
+            backup = old.read_text(encoding="utf-8")
+            try:
+                old_n = len(json.loads(backup).get("events") or [])
+            except Exception:           # noqa: BLE001
+                old_n = 0
+        fetch_event.main()
+        new = json.loads(old.read_text(encoding="utf-8"))
+        new_n = len(new.get("events") or [])
+        if new_n == 0 or new_n < old_n:
+            if backup:
+                old.write_text(backup, encoding="utf-8")
+            print(f"[SKIP event.json] 新 {new_n} 个赛事 < 旧 {old_n} 个，已回滚保留旧文件")
+            return False
+        print(f"[OK event.json] {new_n} 个赛事，updated={new.get('updated')}")
+        return True
+    except Exception as e:              # noqa: BLE001
+        print(f"[event refresh fail] {type(e).__name__}: {e}", file=sys.stderr)
+        return False
+
+
 def main():
     sys.path.insert(0, str(ROOT))
+
+    # ---------- 先刷新赛事中心（event.json），与比赛列表互相独立 ----------
+    ev_path = ROOT / "event.json"
+    if event_age_hours(ev_path) >= EVENT_MAX_AGE_HOURS:
+        print(f"event.json 已 {event_age_hours(ev_path):.1f} 小时未更新，开始刷新…")
+        refresh_event()
+    else:
+        print(f"event.json 才 {event_age_hours(ev_path):.1f} 小时，跳过刷新")
+
     import pipeline
 
     base = json.loads((ROOT / "base.json").read_text(encoding="utf-8"))
