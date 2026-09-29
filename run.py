@@ -93,10 +93,11 @@ def event_age_hours(path):
     """event.json 的年龄（小时）；读不到返回一个大数。"""
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
-        t = d.get("updated", "")
-        t = t.split("+")[0].split("Z")[0]          # 去时区尾巴
+        t = d.get("updated", "").replace("Z", "")
         dt = datetime.datetime.fromisoformat(t)
-        return (datetime.datetime.now(dt.timezone.utc) - dt).total_seconds() / 3600
+        if dt.tzinfo is None:              # 无时区标记的按 UTC 算
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        return (datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds() / 3600
     except Exception:                   # noqa: BLE001
         return 1e9
 
