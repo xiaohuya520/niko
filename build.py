@@ -826,6 +826,32 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
 }"""
 
 # ===== CS 经典武器剪影（内联 SVG sprite，纯几何图形绘制）=====
+# 「添加到主屏幕」独立窗口（standalone PWA）里，iOS/安卓系统不提供右滑返回手势，
+# 这里自补一个：从屏幕左缘向右横滑即 history.back()。普通浏览器不启用（避免与原生手势重复触发）。
+STANDALONE_BACK_JS = """<script>
+(function(){
+  var st = false;
+  try { st = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch(e){}
+  if(!st) return;
+  var sx=0, sy=0, fired=false;
+  /* 横滑容器（tab 条/横滑卡/分支图/表格/照片墙/灯箱）内不抢手势 */
+  var SKIP = '.ev-tabs,.scroller,.eboard,.brk-wrap,.tbl-wrap,.pchips,.pwall,.plb';
+  document.addEventListener('touchstart', function(e){
+    var t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; fired = false;
+    if(e.target && e.target.closest && e.target.closest(SKIP)) fired = true;
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if(fired) return;
+    var t = e.touches[0];
+    var dx = t.clientX - sx, dy = t.clientY - sy;
+    if(sx < 56 && dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.6){
+      fired = true;
+      if(history.length > 1) history.back();
+    }
+  }, {passive:true});
+})();
+</script>"""
 ARMS_SPRITE = """<svg id="armsSprite" aria-hidden="true"
   style="position:absolute;width:0;height:0;overflow:hidden">
   <symbol id="w-awp" viewBox="0 0 240 90"><g fill="currentColor">
@@ -2394,6 +2420,7 @@ def build_page(fname, pid, title, js, desc):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <style>{CSS}</style>
+{STANDALONE_BACK_JS}
 </head>
 <body data-page="{pid}">
 {ARMS_SPRITE}
@@ -2463,6 +2490,7 @@ def main():
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <style>{CSS}</style>
+{STANDALONE_BACK_JS}
 </head>
 <body data-page="{pid}">
 {ARMS_SPRITE}

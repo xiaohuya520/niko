@@ -815,6 +815,30 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
   .pw-item img{height:200px}
   .pgrid{grid-template-columns:repeat(auto-fit,minmax(104px,1fr))}
 }</style>
+<script>
+(function(){
+  var st = false;
+  try { st = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch(e){}
+  if(!st) return;
+  var sx=0, sy=0, fired=false;
+  /* 横滑容器（tab 条/横滑卡/分支图/表格/照片墙/灯箱）内不抢手势 */
+  var SKIP = '.ev-tabs,.scroller,.eboard,.brk-wrap,.tbl-wrap,.pchips,.pwall,.plb';
+  document.addEventListener('touchstart', function(e){
+    var t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; fired = false;
+    if(e.target && e.target.closest && e.target.closest(SKIP)) fired = true;
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if(fired) return;
+    var t = e.touches[0];
+    var dx = t.clientX - sx, dy = t.clientY - sy;
+    if(sx < 56 && dx > 72 && Math.abs(dx) > Math.abs(dy) * 1.6){
+      fired = true;
+      if(history.length > 1) history.back();
+    }
+  }, {passive:true});
+})();
+</script>
 </head>
 <body data-page="index">
 <svg id="armsSprite" aria-hidden="true"
