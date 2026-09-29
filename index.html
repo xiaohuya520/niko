@@ -1748,10 +1748,14 @@ function fxParallax(){
   }, {passive:true});
 }
 /* 站内跳转反馈（关键：绝不拦截默认行为 / 不用 location.href 程序化跳转）
-   原因：e.preventDefault() 后再 location.href 跳转，iOS Safari / Android Chrome
+   原因 1：e.preventDefault() 后再 location.href 跳转，iOS Safari / Android Chrome
    不会把上一页放进「滑动返回」历史栈，导致手机端右滑无法回退到一级页面。
-   交给浏览器原生 <a> 导航即可建立正确的历史记录，右滑返回才会生效。 */
+   原因 2：跳转前加的 .leaving 淡出态会被 bfcache（往返缓存）一并记住——右滑返回时
+   上一页以 opacity:0 的状态恢复，整个内容区「隐形」，看起来同样是「右滑回不去」。
+   所以必须在 pagehide / pageshow 时清掉 .leaving，保证 bfcache 快照是干净状态。 */
 function fxLeave(){
+  addEventListener('pagehide', () => document.body.classList.remove('leaving'));
+  addEventListener('pageshow', () => document.body.classList.remove('leaving'));
   document.addEventListener('click', e => {
     if(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest ? e.target.closest('a[href]') : null;
@@ -1763,6 +1767,8 @@ function fxLeave(){
     if(u.pathname.split('/').pop() === location.pathname.split('/').pop() && u.hash) return;
     // 跨页跳转：仅做淡出反馈，立即放行原生导航（保证右滑返回历史栈正确）
     document.body.classList.add('leaving');
+    // 兜底：导航被环境拦下（离线等）时 3 秒后自动恢复，避免页面永久淡出
+    setTimeout(() => document.body.classList.remove('leaving'), 3000);
   }, true);
 }
 let __fxBound = false;
