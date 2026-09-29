@@ -1180,6 +1180,11 @@ async function sync(labelEl){
     : '○ 使用内置数据（远端暂无更新）';
   // 后台拿到更新数据后静默重渲染（数据有实际变化才重画，避免闪烁）
   if(tag && FRESH){
+    const up = (FRESH.meta || {}).updated;
+    // 页脚时间戳是构建期写死的，数据拉新后同步刷新，否则永远停在最后一次重建的日期
+    if(up) document.querySelectorAll('.foot').forEach(el => {
+      el.textContent = el.textContent.replace(/最近更新：[\s\S]*$/, '最近更新：' + up);
+    });
     const sig = ((FRESH.meta || {}).updated || '') + ':' + ((FRESH.recent_matches || []).length);
     if(sig !== __syncSig){
       __syncSig = sig;
@@ -2324,6 +2329,11 @@ async function boot(){
   setInterval(async () => {
     const r = await pullEvent();
     if(r && evData().updated !== r.data.updated){ EV_FRESH = r.data; render(); }
+    if(r && r.data && r.data.updated){
+      document.querySelectorAll('.foot').forEach(el => {
+        el.textContent = el.textContent.replace(/最近更新：[\s\S]*$/, '最近更新：' + r.data.updated);
+      });
+    }
     const el = document.getElementById('liveStatus');
     if(el) el.textContent = r
       ? '● 已同步（' + r.tag + '）· ' + new Date().toLocaleTimeString('zh-CN')
