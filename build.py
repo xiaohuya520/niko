@@ -2126,6 +2126,9 @@ async function boot(){
 
 EVENT_JS = CORE_JS + r"""
 let CUR = null;
+let CUR_URL_DONE = false;   // URL ?id= 深链只在首次 render 采纳；
+                            // 之后由 tab 点击接管。params 是加载时的快照，
+                            // 若每次 render 都读它，点击切换会被旧 URL 强行改回去
 
 function teamChip(name, TM){
   if(!name) return '<em>待定</em>';
@@ -2285,8 +2288,11 @@ function render(){
       <div class="empty" style="margin-top:30px">暂无赛事数据</div>`;
     return;
   }
-  const want = params.get('id');
-  if(want && EVS.some(x => x.id === want)) CUR = want;
+  if(!CUR_URL_DONE){
+    const want = params.get('id');
+    if(want && EVS.some(x => x.id === want)) CUR = want;
+    CUR_URL_DONE = true;
+  }
   if(!CUR || !EVS.some(x => x.id === CUR))
     CUR = (data.featured && data.featured.id) || EVS[0].id;
   const e = EVS.find(x => x.id === CUR);
@@ -2315,7 +2321,7 @@ function render(){
     btn.addEventListener('click', () => {
       CUR = btn.getAttribute('data-ev');
       render();
-      history.replaceState(null, '', 'event.html?id=' + encodeURIComponent(CUR));
+      history.replaceState(null, '', location.pathname + '?id=' + encodeURIComponent(CUR));
       window.scrollTo({top: 0, behavior: 'smooth'});
     });
   });
