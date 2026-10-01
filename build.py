@@ -1026,6 +1026,30 @@ async function pullEvent(){
   return null;
 }
 
+/* Liquipedia 改版降级时，event.json 的赛事会带 parse_warning 字段（旧数据已保留）。
+   此函数在页面顶部显示固定横幅，让用户一开站点就知道数据可能已过时——
+   这是取代「每日轮询巡检」的站内自报机制，无需任何外部定时任务。 */
+function renderWarnBanner(){
+  let evs = [];
+  try { evs = (evData().events || []); } catch(e){ evs = []; }
+  const bad = evs.filter(e => e && e.parse_warning);
+  let box = document.getElementById('parseWarnBanner');
+  if(!bad.length){
+    if(box) box.remove();
+    return;
+  }
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'parseWarnBanner';
+    document.body.insertBefore(box, document.body.firstChild);
+  }
+  const names = bad.map(e => e.name || e.short || e.id).join('、');
+  box.textContent = '⚠ 赛事中心部分数据解析异常（疑似 Liquipedia 改版）：当前展示的是最近一次正常抓取的旧数据，可能不是最新。涉及：' + names;
+  box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b3261e;'
+    + 'color:#fff;font:600 13px/1.5 system-ui,-apple-system,sans-serif;padding:8px 14px;'
+    + 'text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.35)';
+}
+
 /* ===== 官方照片墙数据（可联网更新） ===== */
 let PH = __PHOTOS__;
 let PH_FRESH = null;
@@ -2364,11 +2388,13 @@ function render(){
 
 async function boot(){
   render();                     // 先渲染内置数据，不阻塞
+  renderWarnBanner();           // 改版降级横幅（event.json 带 parse_warning 时显示）
   const st = document.getElementById('liveStatus');
   if(st) st.textContent = '● 赛事数据已载入 · 每 60 秒自动同步';
   setInterval(async () => {
     const r = await pullEvent();
     if(r && evData().updated !== r.data.updated){ EV_FRESH = r.data; render(); }
+    renderWarnBanner();         // 联网同步后重新评估降级状态
     if(r && r.data && r.data.updated){
       document.querySelectorAll('.foot').forEach(el => {
         el.textContent = el.textContent.replace(/最近更新：[\s\S]*$/, '最近更新：' + r.data.updated);

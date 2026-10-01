@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: niko-data
@@ -38,8 +39,10 @@ jobs:
           fi
 
       - name: Run pipeline
-        # 退出码含义: 0=正常 | 2=Liquipedia 改版导致解析器失效（数据已保留旧版，
-        # 此步会变红 → GitHub 自动向仓库所有者发邮件报警，需人工修 parse_event.py）
+        # 退出码含义: 0=正常 | 2=Liquipedia 改版导致解析器失效（event.json 已保留
+        # 旧版数据并打上 parse_warning 标记）。continue-on-error 让后面仍能提交带
+        # 告警标记的 event.json（线上赛事中心会显示降级横幅）；失败时由下一步自动开 Issue。
+        continue-on-error: true
         run: python run.py
 
       - name: Commit & push
@@ -54,4 +57,26 @@ jobs:
           else
             git commit -m "auto: update NiKo data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push
+          fi
+
+      - name: 自动开/更新降级告警 Issue
+        # 取代原先的「每日轮询巡检」：run.py 失败时由 Actions 即时开/更新一个固定
+        # Issue，实时可追溯，不依赖 WorkBuddy 常驻。带告警标记的 event.json 已随上一步部署。
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create auto-alert --description "Liquipedia 改版致解析器失效自动告警" --color b3261e || true
+          TITLE="⚠ 赛事解析器疑似被 Liquipedia 改版打挂（需修 parse_event.py）"
+          EXIST=$(gh issue list --state open --label auto-alert --json number --jq '.[0].number' || true)
+          if [ -n "$EXIST" ]; then
+            gh issue comment "$EXIST" --body "仍为降级状态，本次触发于 $(date -u +%Y-%m-%dT%H:%M:%SZ)。event.json 已保留旧版数据，线上赛事中心显示降级横幅。"
+          else
+            gh issue create --title "$TITLE" --label auto-alert --body "自动检测：run.py 退出码为 2，说明 Liquipedia 页面改版导致解析器失效，event.json 已保留旧版数据并打上 parse_warning 标记（线上赛事中心会显示降级横幅，站点不会空白）。
+
+请检查 parse_event.py 的分组 / 分支图 / Upcoming Matches 解析逻辑是否需要跟进新模板。
+
+本 Issue 由 GitHub Actions 在失败时自动创建 / 更新，取代原先的每日轮询巡检，无需 WorkBuddy 常驻。
+
+最近运行日志：${{ github.server_url }}/${{ github.repository }}/actions"
           fi
