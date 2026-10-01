@@ -110,7 +110,9 @@ def _standings_rows(seg: str):
     rows = []
     for rm in re.finditer(r"<tr>(.*?)</tr>", seg, re.S):
         r = rm.group(1)
-        if "<th" in r[:40]:
+        # 注意：新版瑞士轮表的数据行开头有排名序号 <th>（如 <th class="bg-up">1</th>），
+        # 不能按「行内有 th」跳过——只跳过真正的表头行（没有任何 td 的行）。
+        if not re.search(r"<td\b", r):
             continue
         # 队名：瑞士轮用 grouptableslot 里的 data-highlightingclass
         team = ""
@@ -217,6 +219,42 @@ def _entries(blk: str):
             "win": win,
         })
     return out
+
+
+def parse_upcoming(h: str, limit=16):
+    """页面顶部 Upcoming Matches 区：即将开赛的对阵与时间戳。
+    新版 Liquipedia 在开赛前把赛程放这里（match-info 卡片），分支图里还是 TBD。"""
+    h = prep(h)
+    seg = section_html(h, "Upcoming Matches")
+    if not seg:
+        seg = section_html(h, "Upcoming Games")
+    if not seg:
+        return []
+    out = []
+    for blk in re.split(r'<div class="match-info(?:"|\s)', seg)[1:]:
+        ts = re.search(r'timer-object[^>]*data-timestamp="(\d+)"', blk)
+        if not ts:
+            continue
+        stage = re.search(r'match-info-stage">([^<]*)<', blk)
+        # 两行 match-info-opponent-row，各含一个 block-team；title=全名，文本=简称
+        names = []
+        for tm in re.finditer(r'<a href="/counterstrike/[^"]+" title="([^"]+)"', blk):
+            n = H.unescape(tm.group(1)).strip()
+            if n and n not in names:
+                names.append(n)
+            if len(names) == 2:
+                break
+        if len(names) < 2 or names[0].upper() == "TBD" or names[1].upper() == "TBD":
+            continue
+        bo = re.search(r'\((Bo\d)\)', blk)
+        out.append({
+            "stage": stage.group(1).strip() if stage else "",
+            "bo": bo.group(1) if bo else "",
+            "ts": int(ts.group(1)),
+            "a": {"name": names[0], "full": names[0], "short": "", "score": None, "win": False},
+            "b": {"name": names[1], "full": names[1], "short": "", "score": None, "win": False},
+        })
+    return out[:limit]
 
 
 def parse_brackets(h: str):
@@ -351,6 +389,7 @@ def build(page_name, html_text, display_name=""):
         "groups": parse_group_tables(html_text),
         "brackets": parse_brackets(html_text),
         "schedule": parse_schedule(html_text),
+        "upcoming": parse_upcoming(html_text),
     }
 
 

@@ -138,9 +138,10 @@ def build_event(cfg, html_text, base_info, now):
         logo = download_logo(p.get("logo", ""))
         teams.append({"name": norm_team(p["name"]), "logo": logo})
 
-    # 日期区间
+    # 日期区间（分支图 + Upcoming Matches 的比赛时间都算）
     ts_all = [m["ts"] for b in d["brackets"] for rd in b["rounds"]
               for m in rd["matches"] if m["ts"]]
+    ts_all += [u["ts"] for u in d.get("upcoming", [])]
     start_iso = end_iso = ""
     if ts_all:
         lo, hi = min(ts_all), max(ts_all)
@@ -194,7 +195,7 @@ def build_event(cfg, html_text, base_info, now):
         if rounds:
             brackets.append({"title": b["title"], "rounds": rounds, "count": b["count"]})
 
-    # 赛程（有时间的对阵）
+    # 赛程（有时间的对阵）+ Upcoming Matches（开赛前的赛程在页面顶部，分支图里还是 TBD）
     sched = []
     for r in d["schedule"]:
         sched.append({
@@ -202,6 +203,17 @@ def build_event(cfg, html_text, base_info, now):
             "a": norm_team(r["a"]["name"]), "b": norm_team(r["b"]["name"]),
             "sa": r["a"]["score"], "sb": r["b"]["score"],
         })
+    seen_ab = {(r["ts"], r["a"], r["b"]) for r in sched}
+    for u in d.get("upcoming", []):
+        a, b = norm_team(u["a"]["name"]), norm_team(u["b"]["name"])
+        if (u["ts"], a, b) in seen_ab:
+            continue
+        seen_ab.add((u["ts"], a, b))
+        sched.append({
+            "stage": u["stage"] or "即将开赛", "round": "小组赛", "bo": u["bo"], "ts": u["ts"],
+            "a": a, "b": b, "sa": None, "sb": None,
+        })
+    sched.sort(key=lambda r: r["ts"])
 
     groups = [{"title": g["title"], "cols": g["cols"], "rows": g["rows"]} for g in d["groups"]]
 
