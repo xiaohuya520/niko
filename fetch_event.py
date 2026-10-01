@@ -151,8 +151,13 @@ def build_event(cfg, html_text, base_info, now):
         start_iso = dt.datetime.fromtimestamp(lo, dt.timezone.utc).isoformat(timespec="seconds")
         end_iso = dt.datetime.fromtimestamp(hi + 4 * 3600, dt.timezone.utc).isoformat(timespec="seconds")
     if cfg["tag"] == "next" and base_info:
-        start_iso = base_info.get("start") or start_iso
-        date_text = base_info.get("date_text", "")
+        # 页面已抓到真实比赛时间戳时，一律以真实时间戳为准，不能用 base.json 的
+        # 手填 start 覆盖——手填值可能陈旧，或把北京时间误写成 UTC（EPL S24 曾因此
+        # 把开赛时间错成次日 02:00，比页面真实首场晚了 9 小时）。
+        # 手填值只在页面还没有公布具体时间（ts_all 为空）时才兜底。
+        if not ts_all:
+            start_iso = base_info.get("start") or start_iso
+        date_text = base_info.get("date_text") or date_text
         tier = base_info.get("tier") or cfg["tier"]
         note = base_info.get("note", "")
     else:
