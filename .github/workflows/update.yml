@@ -38,6 +38,8 @@ jobs:
           fi
 
       - name: Run pipeline
+        # 退出码含义: 0=正常 | 2=Liquipedia 改版导致解析器失效（数据已保留旧版，
+        # 此步会变红 → GitHub 自动向仓库所有者发邮件报警，需人工修 parse_event.py）
         run: python run.py
 
       - name: Commit & push

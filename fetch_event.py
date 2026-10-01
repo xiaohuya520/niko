@@ -18,6 +18,9 @@ import urllib.request
 import parse_event as PE
 
 ROOT = pathlib.Path(__file__).parent
+class ParseDegraded(RuntimeError):
+    """Liquipedia 页面改版导致解析器失效（旧数据已保留，需人工修 parse_event.py）。
+    触发 run.py / GitHub Actions 报警（workflow 变红 + 邮件）。"""
 CACHE = ROOT / "_cache" / "events"
 OUT_JSON = ROOT / "event.json"
 TEAM_DIR = ROOT / "assets" / "teams"
@@ -250,7 +253,17 @@ def main():
     except Exception as e:
         print("读取 data.json 失败:", e)
 
+    # 旧数据快照：改版自检失效时逐赛事回补，避免板块变空白
+    old_by_id = {}
+    try:
+        for _e in json.loads(OUT_JSON.read_text(encoding="utf-8")).get("events") or []:
+            if _e.get("id"):
+                old_by_id[_e["id"]] = _e
+    except Exception:
+        pass
+
     events = []
+    degraded = []
     for i, cfg in enumerate(CONFIG):
         html, src = load_html(cfg["page"], allow_net)
         if not html:
@@ -272,6 +285,23 @@ def main():
         except Exception as e:
             print(f"[失败] {cfg['zh']}: {type(e).__name__} {e}")
             continue
+        # ---------- 改版自检：页面有料但解析为空 = 解析器被改版打挂 ----------
+        warns = PE.parse_health(html, ev)
+        if warns:
+            ev_old = old_by_id.get(ev["id"])
+            old_alive = ev_old and (ev_old.get("groups") or ev_old.get("schedule")
+                                    or ev_old.get("brackets"))
+            if old_alive:
+                ev_old["parse_warning"] = warns
+                events.append(ev_old)
+                degraded.append(ev["id"])
+                print(f"[PARSE-DEGRADED] {ev['name']}: {'; '.join(warns)}；"
+                      f"已保留旧版数据（updated={ev_old.get('updated', '?')}）")
+                continue
+            events.append(ev)
+            degraded.append(ev["id"])
+            print(f"[PARSE-WARN] {ev['name']}: {'; '.join(warns)}；无旧数据可回补")
+            continue
         events.append(ev)
         n_teams = len(ev["teams"])
         n_br = sum(len(rd["matches"]) for b in ev["brackets"] for rd in b["rounds"])
@@ -288,6 +318,13 @@ def main():
     OUT_JSON.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")),
                         encoding="utf-8")
     print("已写出 event.json：", OUT_JSON.stat().st_size // 1024, "KB，赛事数", len(events))
+
+    # 有降级 → 保留数据照常写出，但必须报警（run.py 捕获后让 Actions 变红发邮件）
+    if degraded:
+        msg = (f"解析器疑似被 Liquipedia 改版打挂，涉及 {len(degraded)} 个赛事: "
+               f"{', '.join(degraded)}；旧数据已保留。请检查 parse_event.py 的"
+               f"分组/分支图/Upcoming Matches 解析逻辑是否需要跟进新模板。")
+        raise ParseDegraded(msg)
 
 
 if __name__ == "__main__":

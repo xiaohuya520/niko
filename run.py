@@ -107,6 +107,8 @@ def refresh_event():
 
     fetch_event 优先读 _cache 缓存，Actions 上没有缓存就走网络（自带 32s 限流间隔）。
     防劣化守卫：新赛事数比旧文件少时回滚旧文件 —— 宁可旧也不要清空板块。
+    返回 "ok" / "degraded"（解析器疑似被 Liquipedia 改版打挂，旧数据已保留）
+         / "skip"（网络/其他失败）。
     """
     try:
         import fetch_event              # 仓库根目录里，仅标准库
@@ -119,19 +121,29 @@ def refresh_event():
                 old_n = len(json.loads(backup).get("events") or [])
             except Exception:           # noqa: BLE001
                 old_n = 0
-        fetch_event.main()
+        try:
+            fetch_event.main()
+        except fetch_event.ParseDegraded as e:
+            # 改版自检报警：数据已保留，但必须让 workflow 变红（邮件通知）
+            print("=" * 64)
+            print("[ALARM] Liquipedia 页面疑似改版，解析器失效！")
+            print(f"        {e}")
+            print("        event.json 已保留旧版数据（站点不会空白），")
+            print("        但需要尽快人工修复 parse_event.py，否则数据会逐渐陈旧。")
+            print("=" * 64)
+            return "degraded"
         new = json.loads(old.read_text(encoding="utf-8"))
         new_n = len(new.get("events") or [])
         if new_n == 0 or new_n < old_n:
             if backup:
                 old.write_text(backup, encoding="utf-8")
             print(f"[SKIP event.json] 新 {new_n} 个赛事 < 旧 {old_n} 个，已回滚保留旧文件")
-            return False
+            return "skip"
         print(f"[OK event.json] {new_n} 个赛事，updated={new.get('updated')}")
-        return True
+        return "ok"
     except Exception as e:              # noqa: BLE001
         print(f"[event refresh fail] {type(e).__name__}: {e}", file=sys.stderr)
-        return False
+        return "skip"
 
 
 def main():
@@ -139,9 +151,11 @@ def main():
 
     # ---------- 先刷新赛事中心（event.json），与比赛列表互相独立 ----------
     ev_path = ROOT / "event.json"
+    rc = 0
     if event_age_hours(ev_path) >= EVENT_MAX_AGE_HOURS:
         print(f"event.json 已 {event_age_hours(ev_path):.1f} 小时未更新，开始刷新…")
-        refresh_event()
+        if refresh_event() == "degraded":
+            rc = 2                      # 数据已保留，但以非零退出让 Actions 报警
     else:
         print(f"event.json 才 {event_age_hours(ev_path):.1f} 小时，跳过刷新")
 
@@ -178,7 +192,7 @@ def main():
         print("             判断为 Liquipedia 限流/抓取失败，已放弃写入，")
         print("             保留仓库里已有的 data.json —— 页面不会被清成 0。")
         print("=" * 64)
-        return 0
+        return rc
 
     out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -188,7 +202,7 @@ def main():
           f"winrate={st['win_rate']}% events={st['events']} "
           f"with_map_detail={with_maps} squad={len(squad)} "
           f"updated={data['meta']['updated']}")
-    return 0
+    return rc
 
 
 if __name__ == "__main__":

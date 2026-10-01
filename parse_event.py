@@ -409,3 +409,41 @@ if __name__ == "__main__":
                     f"{m['a']['name']} {m['a']['score']}-{m['b']['score']} {m['b']['name']}"
                     for m in rd["matches"][:6]))
         print("  赛程:", len(d["schedule"]))
+
+
+def parse_health(h: str, d: dict):
+    """改版自检（2026-10-01 加）：页面原材料明明存在、解析结果却是空
+    → 判定解析器已被 Liquipedia 改版打挂，而不是「页面没数据」。
+    返回 warnings 列表；空列表 = 健康。
+
+    判据只认「真实材料」（过滤掉 TBD 占位与非积分表，避免误报）：
+    1. 含 >=4 个真实队名行的 wikitable 存在但 groups=0
+       （对应翻车实例：EPL S24 瑞士轮表改版，17 行全被 th 过滤误杀）
+    2. 分支图里有 >=4 个真实队名但 brackets=0
+    3. Upcoming 区有带时间戳的比赛但 upcoming=0 且 schedule=0
+       （对应翻车实例：开赛前赛程在页面顶部 Upcoming Matches 区，旧代码没抓）
+    """
+    h = prep(h)
+    warns = []
+
+    def _real_teams(seg):
+        return set(re.findall(r'<a href="/counterstrike/[^"]+" title="(?!TBD)([^"]+)"', seg))
+
+    # 1. 积分表存在但分组为空
+    if not (d.get("groups") or []):
+        for m in re.finditer(r'<table class="[^"]*wikitable[^"]*"[^>]*>(.*?)</table>', h, re.S):
+            if len(_real_teams(m.group(1))) >= 4:
+                warns.append("page has a standings-like wikitable but groups=0")
+                break
+
+    # 2. 分支图有真实对阵但解析为空
+    if not (d.get("brackets") or []) and "brkts-bracket" in h:
+        segs = re.split(r'brkts-bracket', h)[1:]
+        if any(len(_real_teams(s[:4000])) >= 4 for s in segs):
+            warns.append("page has brackets with real teams but brackets=0")
+
+    # 3. Upcoming 区有时间戳比赛但赛程全空
+    if not (d.get("upcoming") or []) and not (d.get("schedule") or []):
+        if ("Upcoming Matches" in h or "Upcoming Games" in h)                 and re.search(r'timer-object[^>]*data-timestamp', h):
+            warns.append("page has Upcoming Matches with timestamps but upcoming=0 and schedule=0")
+    return warns
