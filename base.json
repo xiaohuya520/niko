@@ -40,8 +40,8 @@
   },
   "next_match": null,
   "upcoming_tournaments": [
-    {"short": "EPL S24", "date_text": "10/03–11", "start": "2026-10-03T09:00:00Z", "name": "ESL Pro League Season 24", "tier": "S-Tier", "note": ""},
-    {"short": "IEM 北京", "date_text": "11/02–08", "start": "2026-11-02T10:00:00Z", "name": "IEM 北京 2026", "tier": "S-Tier", "note": "奖金 125 万美元"}
+    {"short": "EPL S24", "date_text": "10/03–11", "start": "2026-10-03T09:00:00Z", "end": "2026-10-11T23:59:59Z", "name": "ESL Pro League Season 24", "tier": "S-Tier", "note": ""},
+    {"short": "IEM 北京", "date_text": "11/02–08", "start": "2026-11-02T10:00:00Z", "end": "2026-11-08T23:59:59Z", "name": "IEM 北京 2026", "tier": "S-Tier", "note": "奖金 125 万美元"}
   ],
   "known_ratings": [
     {"date": "2026-09-04", "opponent": "G2", "ratings": [1.54]},

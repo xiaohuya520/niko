@@ -50,6 +50,36 @@ def slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
+def parse_end_from_date_text(date_text, year):
+    """从 base.json 的 date_text（如 '10/03–11' 或 '11/02–11/08'）推导赛事结束 UTC 时刻。
+
+    返回 ISO 字符串或 None。赛事结束日用当天 23:59:59 UTC，避免把跨日赛事提前判为已结束。
+    """
+    if not date_text:
+        return None
+    try:
+        left, right = date_text.split("–")   # 注意是 en dash（–），不是连字符
+    except Exception:
+        return None
+    try:
+        lm, ld = (int(x) for x in left.strip().split("/"))
+    except Exception:
+        return None
+    if "/" in right:
+        try:
+            rm, rd = (int(x) for x in right.strip().split("/"))
+        except Exception:
+            return None
+    else:
+        rm, rd = lm, int(right.strip())
+    yr = year + 1 if (rm, rd) < (lm, ld) else year
+    try:
+        e = dt.datetime(yr, rm, rd, 23, 59, 59, tzinfo=dt.timezone.utc)
+    except Exception:
+        return None
+    return e.isoformat(timespec="seconds")
+
+
 def cache_path(page: str) -> pathlib.Path:
     if page in CACHE_ALIAS:
         return CACHE / CACHE_ALIAS[page]
@@ -157,6 +187,17 @@ def build_event(cfg, html_text, base_info, now):
         # 手填值只在页面还没有公布具体时间（ts_all 为空）时才兜底。
         if not ts_all:
             start_iso = base_info.get("start") or start_iso
+        # end 与 start 相反：页面通常只发布了近期（首日）赛程，max(ts)+4h 会远早于
+        # 真实赛事结束日，导致赛事被提前判为「已结束」（EPL S24 实际打到 10/11，首日
+        # 只有 5 场，旧逻辑算出的 end 是 10/03 当晚）。这里优先用 base 显式 end，
+        # 否则从 date_text 推导完整赛事结束日。
+        base_end = base_info.get("end")
+        if base_end:
+            end_iso = base_end
+        else:
+            de = parse_end_from_date_text(base_info.get("date_text"), now.year)
+            if de:
+                end_iso = de
         date_text = base_info.get("date_text") or date_text
         tier = base_info.get("tier") or cfg["tier"]
         note = base_info.get("note", "")

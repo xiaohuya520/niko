@@ -1235,7 +1235,9 @@ async function sync(labelEl){
     if(up) document.querySelectorAll('.foot').forEach(el => {
       el.textContent = el.textContent.replace(/最近更新：[\s\S]*$/, '最近更新：' + up);
     });
-    const sig = ((FRESH.meta || {}).updated || '') + ':' + ((FRESH.recent_matches || []).length);
+    const sig = ((FRESH.meta || {}).updated || '') + '|' +
+                (FRESH.upcoming_tournaments || []).map(t => [t.short, t.start, t.end, t.date_text].join('=')).join(',') + '|' +
+                ((FRESH.recent_matches || []).length);
     if(sig !== __syncSig){
       __syncSig = sig;
       render();
@@ -1244,12 +1246,14 @@ async function sync(labelEl){
   }
   return tag;
 }
+let __cdTimer = null;
 function startCountdown(target, onChange){
   const el = {
     d: document.getElementById('cdD'), h: document.getElementById('cdH'),
     m: document.getElementById('cdM'), s: document.getElementById('cdS')
   };
   if(!el.d) return;
+  if(__cdTimer){ clearInterval(__cdTimer); __cdTimer = null; }   // 重渲染前清掉旧定时器，否则倒计时会越跑越快
   const tick = () => {
     let diff = target ? (new Date(target) - Date.now()) / 1000 : 0;
     if(diff < 0) diff = 0;
@@ -1261,7 +1265,7 @@ function startCountdown(target, onChange){
     if(st && diff <= 0){ st.textContent = '进行中'; dot.classList.add('live'); }
     else if(st){ st.textContent = '待战'; }
   };
-  tick(); setInterval(tick, 1000);
+  tick(); __cdTimer = setInterval(tick, 1000);
 }
 function drawCrosshair(x, boxId){
   const box = document.getElementById(boxId || 'xhBox');
@@ -1850,6 +1854,7 @@ async function boot(){
   fx();
   const st = document.getElementById('liveStatus');
   sync(st);
+  setInterval(() => sync(st), 60000);   // 远端开赛时间/赛程等一旦变动，首页自动刷新（与二级页一致），无需手动点刷新
   pullPhotos().then(tag => {
     if(tag){ render(); fx(); if(st) st.textContent = '● 照片已更新（' + tag + '）'; }
   });
