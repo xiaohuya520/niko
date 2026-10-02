@@ -30,6 +30,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Scrapling 自适应指纹库（约 4KB）：跨运行保留，页面改版时能靠历史指纹
+      # 重新定位元素。已在 .gitignore 中，不会被提交进仓库。
+      - name: 恢复 Scrapling 指纹缓存
+        uses: actions/cache@v4
+        with:
+          path: _cache/scrapling
+          key: scrapling-fp-${{ github.run_id }}
+          restore-keys: |
+            scrapling-fp-
+
+      # 可选增强：装不上就自动降级为纯正则解析（`|| true` 保证不阻塞主流程）
+      - name: 安装可选依赖
+        continue-on-error: true
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
       # 第一次运行时把 niko-upload 子目录里的文件搬到仓库根目录，之后自动跳过
       - name: 整理文件到根目录
         run: |
@@ -72,9 +89,14 @@ jobs:
           if [ -n "$EXIST" ]; then
             gh issue comment "$EXIST" --body "仍为降级状态，本次触发于 $(date -u +%Y-%m-%dT%H:%M:%SZ)。event.json 已保留旧版数据，线上赛事中心显示降级横幅。"
           else
-            gh issue create --title "$TITLE" --label auto-alert --body "自动检测：run.py 退出码为 2，说明 Liquipedia 页面改版导致解析器失效，event.json 已保留旧版数据并打上 parse_warning 标记（线上赛事中心会显示降级横幅，站点不会空白）。
+            gh issue create --title "$TITLE" --label auto-alert --body "自动检测：run.py 退出码为 2，说明 Liquipedia 页面改版导致解析器失效。**Scrapling 自愈层已先行尝试补位但未成功**（页面空白处才补，补不回来就是内层结构也变了）。
 
-请检查 parse_event.py 的分组 / 分支图 / Upcoming Matches 解析逻辑是否需要跟进新模板。
+event.json 已保留旧版数据并打上 parse_warning 标记（线上赛事中心会显示降级横幅，站点不会空白）。
+
+请检查：
+1. parse_event.py 的分组 / 分支图 / Upcoming Matches 解析逻辑是否需要跟进新模板；
+2. parse_event_sl.py 的强判据（upcoming=data-timestamp+双队、brackets=[data-team-shortname]）是否也已失效；
+3. Liquipedia 是否已改用新的数据属性，若是请同步更新这两个文件。
 
 本 Issue 由 GitHub Actions 在失败时自动创建 / 更新，取代原先的每日轮询巡检，无需 WorkBuddy 常驻。
 

@@ -324,21 +324,7 @@ def parse_brackets(h: str):
 
 # ---------------------------------------------------------------- 赛程 / 比分
 
-def parse_schedule(h: str, limit=40):
-    """从分支图里抽出带时间戳的对阵，作为赛程与实时比分来源。"""
-    rows = []
-    for b in parse_brackets(h):
-        for rd in b["rounds"]:
-            for m in rd["matches"]:
-                if not m["ts"]:
-                    continue
-                rows.append({
-                    "stage": b["title"],
-                    "round": rd["name"],
-                    "bo": m["bo"],
-                    "ts": m["ts"],
-                    "a": m["a"], "b": m["b"],
-                })
+def _dedup_sort(rows, limit=40):
     seen, uniq = set(), []
     for r in sorted(rows, key=lambda x: x["ts"]):
         k = (r["ts"], r["a"]["name"], r["b"]["name"])
@@ -347,6 +333,29 @@ def parse_schedule(h: str, limit=40):
         seen.add(k)
         uniq.append(r)
     return uniq[:limit]
+
+
+def schedule_from_brackets(brackets, limit=40):
+    """从任意来源的 branches 结构生成赛程（首字母/自愈来的都能用）。"""
+    rows = []
+    for b in brackets:
+        for rd in b.get("rounds", []):
+            for m in rd.get("matches", []):
+                if not m.get("ts"):
+                    continue
+                rows.append({
+                    "stage": b.get("title", ""),
+                    "round": rd.get("name", ""),
+                    "bo": m.get("bo", ""),
+                    "ts": m["ts"],
+                    "a": m["a"], "b": m["b"],
+                })
+    return _dedup_sort(rows, limit)
+
+
+def parse_schedule(h: str, limit=40):
+    """从分支图里抽出带时间戳的对阵，作为赛程与实时比分来源。"""
+    return schedule_from_brackets(parse_brackets(h), limit)
 
 
 # ---------------------------------------------------------------- 概览信息
@@ -381,16 +390,55 @@ def parse_overview(h: str, name: str):
     return out
 
 
-def build(page_name, html_text, display_name=""):
-    return {
+# 需要自愈的字段（顺序即优先级）
+_HEAL_KEYS = ("participants", "groups", "brackets", "upcoming")
+
+
+def build(page_name, html_text, display_name="", url=None):
+    """解析一个赛事页。
+
+    url 传入时会启用「自愈层」：主解析器（正则）某块产出为空时，
+    用 Scrapling 的语义选择器 / 自适应指纹兜底补上；**主解析器有结果时
+    绝不覆盖**，因此不会让现有数据变差。
+
+    反过来，**只有主解析器健康时才更新指纹库**，避免把改版后的残缺形态
+    写进指纹，导致以后 adaptive 越用越偏。
+    """
+    d = {
         "page": page_name,
         "info": parse_overview(html_text, display_name or page_name),
         "participants": parse_participants(html_text),
         "groups": parse_group_tables(html_text),
         "brackets": parse_brackets(html_text),
-        "schedule": parse_schedule(html_text),
         "upcoming": parse_upcoming(html_text),
     }
+    d["schedule"] = schedule_from_brackets(d["brackets"])
+
+    missing = [k for k in _HEAL_KEYS if not d.get(k)]
+    if missing and url:
+        try:
+            import parse_event_sl as SL
+            got = SL.heal(html_text, missing, url)
+        except Exception as e:                      # 自愈失败不影响主流程
+            got = {}
+            parse_health._last_error = repr(e)
+        if got:
+            d.update(got)
+            # 分支图是自愈来的 → 赛程要按自愈结果重算（正则那版是空的）
+            if "brackets" in got and not d.get("schedule"):
+                d["schedule"] = schedule_from_brackets(got["brackets"])
+            d["selfhealed"] = sorted(got)
+
+    if url:
+        # 健康（无告警且关键块有数据）才写入指纹
+        healthy = not parse_health(html_text, d)
+        if healthy:
+            try:
+                import parse_event_sl as SL
+                SL.refresh_fingerprints(html_text, url)
+            except Exception:
+                pass
+    return d
 
 
 if __name__ == "__main__":

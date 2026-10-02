@@ -157,13 +157,23 @@ def summarize_format(h: str) -> str:
 
 def build_event(cfg, html_text, base_info, now):
     h = html_text
-    d = PE.build(cfg["page"], h, cfg["zh"])
+    # url 是 Scrapling 自适应指纹的主键；传了才会启用自愈层与指纹更新
+    url = "https://liquipedia.net/counterstrike/" + urllib.parse.quote(cfg["page"])
+    d = PE.build(cfg["page"], h, cfg["zh"], url=url)
+    if d.get("selfhealed"):
+        print(f"[SELF-HEAL] {cfg['page']} 主解析器空缺字段已由 Scrapling 补上: "
+              f"{', '.join(d['selfhealed'])}")
     parts = d["participants"]
-    if not parts and cfg.get("teams_page"):
-        # 淘汰赛子页面没有参赛队名单，回主页面取（只读缓存，避免额外联网）
+    # 取参赛名单的优先级：
+    #   ① teams_page（赛事主页面）—— 最权威，含全部队伍（如 IEM 科隆 24 队）
+    #   ② 本页解析结果（可能是 Scrapling 自愈来的，只有淘汰赛那几支）
+    # 淘汰赛子页面本来就没有完整名单，子页面自愈出的 8 队不能覆盖主页面的 24 队。
+    if cfg.get("teams_page"):
         alt_p = cache_path(cfg["teams_page"])
         if alt_p.exists():
-            parts = PE.parse_participants(alt_p.read_text(encoding="utf-8"))
+            full = PE.parse_participants(alt_p.read_text(encoding="utf-8"))
+            if full:
+                parts = full
 
     # 队标 -> 本地
     teams = []
