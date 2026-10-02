@@ -1021,6 +1021,18 @@ async function pullEvent(){
   return null;
 }
 
+// 赛事数据内容指纹：任一赛事的 brackets/schedule/groups 数量、status、updated 变化都算「变了」。
+// 用指纹判断自动刷新，比单看 updated 时间戳更稳健——万一 Actions 重跑时 updated 字段异常没变，
+// 只要真实内容变了前端照样重渲染，不会出现「线上已更新但页面不刷新」的僵局。
+function eventFingerprint(d){
+  const ps = [];
+  for(const e of (d.events || [])){
+    ps.push([e.id, (e.brackets||[]).length, (e.schedule||[]).length,
+             (e.groups||[]).length, e.status, e.updated].join(':'));
+  }
+  return ps.join('|');
+}
+
 /* Liquipedia 改版降级时，event.json 的赛事会带 parse_warning 字段（旧数据已保留）。
    此函数在页面顶部显示固定横幅，让用户一开站点就知道数据可能已过时——
    这是取代「每日轮询巡检」的站内自报机制，无需任何外部定时任务。 */
@@ -1394,7 +1406,9 @@ function bracketsSec(e){
   const bs = (e.brackets || []).filter(b => b.count);
   if(!bs.length) return `<div class="sec">
     <div class="sec-h"><b>分支图</b><i></i><em>对阵树</em></div>
-    <div class="empty">分组与对阵尚未公布<br>赛事开赛前会由 Liquipedia 自动补全</div>
+    <div class="empty">${(e.status === 'upcoming')
+      ? '淘汰赛阶段开始后，分支图将自动出现并每 60 秒同步'
+      : '分组与对阵尚未公布'}<br>数据来自 Liquipedia（CC BY-SA 3.0）</div>
     </div>`;
   const sorted = bs.slice().sort((a, b) => (isPlayoff(b.title) ? 1 : 0) - (isPlayoff(a.title) ? 1 : 0));
   return sorted.map(b => {
@@ -1497,19 +1511,20 @@ async function boot(){
   renderWarnBanner();           // 改版降级横幅（event.json 带 parse_warning 时显示）
   const st = document.getElementById('liveStatus');
   if(st) st.textContent = '● 赛事数据已载入 · 每 60 秒自动同步';
+  let _fp = eventFingerprint(evData());
   setInterval(async () => {
     const r = await pullEvent();
-    if(r && evData().updated !== r.data.updated){ EV_FRESH = r.data; render(); }
+    if(!r) return;              // 联网失败，保留内置/上次数据，下次再试
+    const fp = eventFingerprint(r.data);
+    if(fp !== _fp){ _fp = fp; EV_FRESH = r.data; render(); }  // 内容真变了才重渲染（保留滚动位置）
     renderWarnBanner();         // 联网同步后重新评估降级状态
-    if(r && r.data && r.data.updated){
+    if(r.data && r.data.updated){
       document.querySelectorAll('.foot').forEach(el => {
         el.textContent = el.textContent.replace(/最近更新：[\s\S]*$/, '最近更新：' + r.data.updated);
       });
     }
     const el = document.getElementById('liveStatus');
-    if(el) el.textContent = r
-      ? '● 已同步（' + r.tag + '）· ' + new Date().toLocaleTimeString('zh-CN')
-      : '○ 离线缓存（未能联网）· ' + new Date().toLocaleTimeString('zh-CN');
+    if(el) el.textContent = '● 已同步（' + r.tag + '）· ' + new Date().toLocaleTimeString('zh-CN');
   }, 60000);
 }
 

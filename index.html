@@ -1021,6 +1021,18 @@ async function pullEvent(){
   return null;
 }
 
+// 赛事数据内容指纹：任一赛事的 brackets/schedule/groups 数量、status、updated 变化都算「变了」。
+// 用指纹判断自动刷新，比单看 updated 时间戳更稳健——万一 Actions 重跑时 updated 字段异常没变，
+// 只要真实内容变了前端照样重渲染，不会出现「线上已更新但页面不刷新」的僵局。
+function eventFingerprint(d){
+  const ps = [];
+  for(const e of (d.events || [])){
+    ps.push([e.id, (e.brackets||[]).length, (e.schedule||[]).length,
+             (e.groups||[]).length, e.status, e.updated].join(':'));
+  }
+  return ps.join('|');
+}
+
 /* Liquipedia 改版降级时，event.json 的赛事会带 parse_warning 字段（旧数据已保留）。
    此函数在页面顶部显示固定横幅，让用户一开站点就知道数据可能已过时——
    这是取代「每日轮询巡检」的站内自报机制，无需任何外部定时任务。 */
