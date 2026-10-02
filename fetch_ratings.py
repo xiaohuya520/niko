@@ -240,9 +240,37 @@ def report():
         print(f"  - {t['date']} vs {t['opponent']}")
 
 
+def merge_into_data():
+    """把 ratings.json 的评分合并进 data.json（等价于 pipeline.assemble 的评分步骤）。
+
+    幂等、可反复运行，且**只动评分不动比赛数据本身**。
+    用途：本机回补完评分后，不用等 Actions 重跑，立刻让页面显示出来。
+    """
+    import pipeline as PL
+    base = json.loads((ROOT / "base.json").read_text(encoding="utf-8"))
+    store = PL._load_ratings_store(base)
+    data = json.loads((ROOT / "data.json").read_text(encoding="utf-8"))
+    hit = 0
+    for m in data.get("recent_matches", []):
+        src = PL._match_ratings(store, m["date"][:10], m["opponent"])
+        niko = {"ratings": (src or {}).get("ratings", [])}
+        for k in ("kd", "adr", "note"):
+            if src and src.get(k):
+                niko[k] = src[k]
+        if niko["ratings"]:
+            hit += 1
+        m["niko"] = niko
+    (ROOT / "data.json").write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    total = len(data.get("recent_matches", []))
+    print(f"已合并评分：{hit}/{total} 场（{(hit / total * 100):.0f}%）")
+
+
 if __name__ == "__main__":
     if "--report" in sys.argv:
         report()
+    elif "--merge" in sys.argv:
+        merge_into_data()
     else:
         def _num(flag, default):
             return int(sys.argv[sys.argv.index(flag) + 1]) if flag in sys.argv else default
