@@ -221,6 +221,26 @@ def _entries(blk: str):
     return out
 
 
+def parse_default_bo(h: str) -> str:
+    """从 Format 段抓全局赛制，例如 'All matches are <abbr ...>Bo3</abbr>' → 'Bo3'。
+    用于 Upcoming Matches / 小组赛对阵列表里没有单场 BO 标注的情况。
+
+    取舍：优先取 'All matches are BoX' 这种全局默认值（它通常排在 'Grand Final is Bo5'
+    之前），这样小组赛/常规轮次回填的是 Bo3 而非被决赛的 Bo5 覆盖。"""
+    h = prep(h)
+    seg = section_html(h, "Format")
+    if not seg:
+        return ""
+    m = re.search(r"All matches are.*?<abbr[^>]*>\s*(Bo\d)", seg, re.S | re.I)
+    if m:
+        return m.group(1)
+    m = re.search(r'<abbr title="Best of \d">\s*(Bo\d)\s*</abbr>', seg)
+    if m:
+        return m.group(1)
+    m = re.search(r"(Bo\d)", seg)
+    return m.group(1) if m else ""
+
+
 def parse_upcoming(h: str, limit=16):
     """页面顶部 Upcoming Matches 区：即将开赛的对阵与时间戳。
     新版 Liquipedia 在开赛前把赛程放这里（match-info 卡片），分支图里还是 TBD。"""
@@ -230,6 +250,7 @@ def parse_upcoming(h: str, limit=16):
         seg = section_html(h, "Upcoming Games")
     if not seg:
         return []
+    default_bo = parse_default_bo(h)
     out = []
     for blk in re.split(r'<div class="match-info(?:"|\s)', seg)[1:]:
         ts = re.search(r'timer-object[^>]*data-timestamp="(\d+)"', blk)
@@ -249,7 +270,7 @@ def parse_upcoming(h: str, limit=16):
         bo = re.search(r'\((Bo\d)\)', blk)
         out.append({
             "stage": stage.group(1).strip() if stage else "",
-            "bo": bo.group(1) if bo else "",
+            "bo": bo.group(1) if bo else default_bo,
             "ts": int(ts.group(1)),
             "a": {"name": names[0], "full": names[0], "short": "", "score": None, "win": False},
             "b": {"name": names[1], "full": names[1], "short": "", "score": None, "win": False},
@@ -320,6 +341,97 @@ def parse_brackets(h: str):
         seen.add(key)
         uniq.append(b)
     return uniq
+
+
+# ---------------------------------------------------------------- 小组赛对阵列表
+
+_MONTHS = {"January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
+           "July": 7, "August": 8, "September": 9, "October": 10, "November": 11,
+           "December": 12}
+
+
+def _date_header_zh(t: str) -> str:
+    """'October 3, 2026' → '10月3日'；解析不出就原样返回。"""
+    m = re.match(r"([A-Za-z]+)\s+(\d{1,2})", (t or "").strip())
+    mo = _MONTHS.get(m.group(1).title()) if m else None
+    if not mo:
+        return (t or "").strip()
+    return f"{mo}月{int(m.group(2))}日"
+
+
+def _stage_of(h: str, pos: int, hs=None) -> str:
+    """pos 之前最近的「阶段级」标题（跳过 Round N / High / Mid / Low / Overview 等子级）。"""
+    hs = hs if hs is not None else headings(h)
+    best = ""
+    for p, lvl, t in hs:
+        if p >= pos:
+            break
+        if (re.match(r"^Round\s*\d+$", t) or t in
+                ("High", "Mid", "Low", "Overview", "Detailed Results")):
+            continue
+        best = t
+    return best
+
+
+def parse_matchlist(h: str):
+    """解析小组赛/第一阶段的对阵列表（brkts-matchlist 结构）。
+
+    Liquipedia 的小组赛不用 brkts-bracket（那是淘汰赛树），而是按日期分组的扁平
+    对阵列表：brkts-matchlist-header（如 'October 3, 2026'）+ 一批 brkts-matchlist-match。
+    旧版 parse_brackets 只认 brkts-bracket，导致 EPL S24 这类「小组赛已开打、淘汰赛
+    还没定」的页面 brackets=0，第一阶段对阵完全显示不出来。
+
+    返回 [ {title, rounds:[{name, matches:[...]}]} ]，结构与 parse_brackets 一致，
+    供 build() 并入 brackets。日期作轮次（列）名；对阵无时间戳（ts=None），
+    不会污染赛程（schedule_from_brackets 会跳过无 ts 的场次）。"""
+    h = prep(h)
+    miter = list(re.finditer(r'<div class="brkts-matchlist-match', h))
+    if not miter:
+        return []
+    hdr_pos = [(mh.start(), _text(mh.group(1)).strip()) for mh in
+               re.finditer(r'<div class="brkts-matchlist-header[^>]*>(.*?)</div>', h, re.S)]
+    default_bo = parse_default_bo(h)
+    groups, order = {}, []
+    for m in miter:
+        name = ""
+        for hp, ht in hdr_pos:
+            if hp < m.start():
+                name = ht
+            else:
+                break
+        blk = h[m.start(): m.start() + 5000]
+        names = [re.sub(r"^Team\s+", "", H.unescape(x).strip())
+                 for x in re.findall(r'brkts-matchlist-opponent[^>]*aria-label="([^"]*)"', blk)]
+        names = [x for x in names
+                 if x and x.upper() not in ("TBD", "TO BE DETERMINED", "–", "-")]
+        if len(names) < 2:
+            continue
+        # 比分：两个 brkts-matchlist-score 单元格的 cell-content（未赛为空）
+        sc = re.findall(r'brkts-matchlist-score[^>]*>.*?cell-content">([^<]*)', blk, re.S)
+        sa = int(sc[0]) if len(sc) > 0 and sc[0].strip().isdigit() else None
+        sb = int(sc[1]) if len(sc) > 1 and sc[1].strip().isdigit() else None
+        wa = wb = False
+        if sa is not None and sb is not None and sa != sb:
+            wa, wb = sa > sb, sb > sa
+        md = {
+            "a": {"name": names[0], "full": names[0], "short": "", "score": sa, "win": wa},
+            "b": {"name": names[1], "full": names[1], "short": "", "score": sb, "win": wb},
+            "ts": None, "bo": default_bo, "depth": 0,
+        }
+        key = name or "对阵"
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(md)
+    if not groups:
+        return []
+    title = _stage_of(h, miter[0].start()) or "小组赛"
+    rounds = [{"name": _date_header_zh(k) if re.match(r"^[A-Za-z]+ \d", k) else k,
+               "matches": groups[k]} for k in order if groups[k]]
+    if not rounds:
+        return []
+    return [{"title": title, "rounds": rounds,
+             "count": sum(len(r["matches"]) for r in rounds)}]
 
 
 # ---------------------------------------------------------------- 赛程 / 比分
@@ -412,6 +524,11 @@ def build(page_name, html_text, display_name="", url=None):
         "brackets": parse_brackets(html_text),
         "upcoming": parse_upcoming(html_text),
     }
+    # 小组赛/第一阶段对阵列表（brkts-matchlist）并入分支图：
+    # 淘汰赛树还没定（全是 TBD）时，第一阶段对阵也能显示出来（2026-10-03 用户反馈）
+    _ml = parse_matchlist(html_text)
+    if _ml:
+        d["brackets"] = d["brackets"] + _ml
     d["schedule"] = schedule_from_brackets(d["brackets"])
 
     missing = [k for k in _HEAL_KEYS if not d.get(k)]

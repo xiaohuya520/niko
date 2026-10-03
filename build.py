@@ -1173,7 +1173,8 @@ const ROUND_ZH = {
   'Upper Bracket Final':'胜者组 决赛','Lower Bracket Quarterfinals':'败者组 首轮',
   'Lower Bracket Semifinals':'败者组 半决赛','Lower Bracket Final':'败者组 决赛',
   'Round 1':'第 1 轮','Round 2':'第 2 轮','Round 3':'第 3 轮','Round 4':'第 4 轮','Round 5':'第 5 轮',
-  'Playoffs':'淘汰赛','Results':'淘汰赛','Group A':'A 组','Group B':'B 组','Group C':'C 组','Group D':'D 组'
+  'Playoffs':'淘汰赛','Results':'淘汰赛','Group A':'A 组','Group B':'B 组','Group C':'C 组','Group D':'D 组',
+  'Group Stage':'小组赛','First Stage':'第一阶段','Swiss Stage':'瑞士轮','Stage 1':'第一阶段','Stage 2':'第二阶段','Stage 3':'第三阶段'
 };
 function zhRound(n){ return ROUND_ZH[n] || n; }
 function isPlayoff(t){ return /playoff|results|final|淘汰/i.test(t || ''); }
