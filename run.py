@@ -33,9 +33,11 @@ API = "https://liquipedia.net/counterstrike/api.php?"
 # 新数据至少要达到旧数据的这个比例，才允许覆盖写入
 MIN_KEEP = 0.8
 
-# event.json（赛事中心板块）最大年龄：超过才重新抓取，避免每 30 分钟白跑一遍
-# 赛事页（赛程/分支图变化慢；进行中比赛的比分由维基维护者更新，2 小时粒度够用）
+# event.json（赛事中心板块）最大年龄：超过才重新抓取，避免每次运行都白跑一遍。
+# 已结束/未开赛的赛事变化慢，2 小时足够；但**有赛事正在进行**时要加密到分钟级，
+# 否则分支图/赛程的实时比分会滞后很久（用户 2026-10-03 反馈）。
 EVENT_MAX_AGE_HOURS = 2
+EVENT_MAX_AGE_LIVE_HOURS = 0.2
 
 # 需要抓取的 Liquipedia 赛事页（Major 拆成主页面 + Stage_3 + Playoffs）
 PAGES = [
@@ -102,6 +104,15 @@ def event_age_hours(path):
         return 1e9
 
 
+def has_live_event():
+    """event.json 里是否有正在进行的赛事（决定刷新频率）。"""
+    try:
+        d = json.loads((ROOT / "event.json").read_text(encoding="utf-8"))
+        return any((e or {}).get("status") == "live" for e in d.get("events") or [])
+    except Exception:                   # noqa: BLE001
+        return False
+
+
 def refresh_event():
     """刷新 event.json（赛事中心板块：分组/分支图/赛程）。
 
@@ -152,7 +163,11 @@ def main():
     # ---------- 先刷新赛事中心（event.json），与比赛列表互相独立 ----------
     ev_path = ROOT / "event.json"
     rc = 0
-    if event_age_hours(ev_path) >= EVENT_MAX_AGE_HOURS:
+    max_age = EVENT_MAX_AGE_LIVE_HOURS if has_live_event() else EVENT_MAX_AGE_HOURS
+    if has_live_event():
+        print("检测到有赛事正在进行 → 赛事刷新间隔加密到 "
+              f"{EVENT_MAX_AGE_LIVE_HOURS} 小时")
+    if event_age_hours(ev_path) >= max_age:
         print(f"event.json 已 {event_age_hours(ev_path):.1f} 小时未更新，开始刷新…")
         if refresh_event() == "degraded":
             rc = 2                      # 数据已保留，但以非零退出让 Actions 报警

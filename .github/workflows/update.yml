@@ -2,7 +2,10 @@ name: Update NiKo data
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # 每 30 分钟（GitHub 免费账户可能有几分钟排队延迟，属正常）
+    - cron: "*/15 * * * *"   # 每 15 分钟（GitHub 免费账户可能有几分钟排队延迟，属正常）
+      # 注意：真正决定是否重抓赛事页的是 run.py 里的 EVENT_MAX_AGE_* 阈值——
+      # 有赛事正在进行时加密到 EVENT_MAX_AGE_LIVE_HOURS（约 12 分钟），
+      # 空闲赛事仍是 2 小时。这样比分接近实时，又不至于把 Liquipedia 请求额度打满。
   workflow_dispatch:         # 允许在 Actions 页面手动点 "Run workflow" 立即测试
   push:                      # 代码/配置一改就重抓一次
     branches: [main]         # Actions 自己提交 data.json 不会触发新的运行，因此不会死循环

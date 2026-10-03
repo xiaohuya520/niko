@@ -270,7 +270,10 @@ def build_event(cfg, html_text, base_info, now):
         seen_ab.add((u["ts"], a, b))
         sched.append({
             "stage": u["stage"] or "即将开赛", "round": "小组赛", "bo": u["bo"], "ts": u["ts"],
-            "a": a, "b": b, "sa": None, "sb": None,
+            # Upcoming 卡片本身就带比分（进行中/已结束的那一批），不能写死 None，
+            # 否则赛程里的实时比分始终不显示（2026-10-03 修复）
+            "a": a, "b": b,
+            "sa": (u["a"] or {}).get("score"), "sb": (u["b"] or {}).get("score"),
         })
     sched.sort(key=lambda r: r["ts"])
 

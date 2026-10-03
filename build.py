@@ -1560,13 +1560,46 @@ function seasonBoardHtml(LIST, YS){
   return `<div class="grid">${cellHtml}</div>${poolHtml}${evHtml}`;
 }
 
+/* 首屏 hero 的实时对阵：优先「正在进行」，同级里优先 Falcons 参赛的那场。
+   数据源是 event.json（每 60 秒同步），所以赛事一开打这里就会显示对阵与比分，
+   不会再停留在「对阵尚未公布」（那是 data.json 的 next_match 为空时的旧回退）。 */
+function liveFixture(){
+  const EVS = (((evData && evData()) || {}).events) || [];
+  const now = Date.now() / 1000;
+  const cand = [];
+  EVS.forEach(e => (e.schedule || []).forEach(m => {
+    if(!m.ts || !m.a || !m.b) return;
+    const inv = /falcon/i.test(m.a) || /falcon/i.test(m.b);
+    if(isLive(m.ts)) cand.push({ pri: inv ? 0 : 1, e, m, ts: m.ts });
+    else if(m.ts > now) cand.push({ pri: inv ? 10 : 11, e, m, ts: m.ts });
+  }));
+  if(!cand.length) return null;
+  cand.sort((x, y) => x.pri - y.pri || x.ts - y.ts);
+  return cand[0];
+}
+
 function render(){
   const d = dataOf(), P = d.player, YS = d.year_stats, LIST = d.recent_matches, SQ = d.squad || [];
   const c = P.career || {}, g = P.gear || {}, x = P.crosshair || {};
   const maxR = Math.max(...LIST.flatMap(m => (m.niko && m.niko.ratings) || [0]), 1);
 
   let heroTag, heroInner, target = null;
-  if(d.next_match){
+  // ① 赛事中心的实时对阵（进行中 > 下一场，同级优先 Falcons 参赛）
+  const LF = (typeof liveFixture === 'function') ? liveFixture() : null;
+  if(LF){
+    const m = LF.m, ev = LF.e, playing = isLive(m.ts);
+    const hasScore = m.sa !== null && m.sb !== null && m.sa !== undefined;
+    heroTag = playing ? (hasScore ? '正在进行' : '即将开始') : '下一场比赛';
+    target = new Date(m.ts * 1000).toISOString();
+    const fa = /falcon/i.test(m.a) ? 'FALCONS' : m.a;
+    const fb = /falcon/i.test(m.b) ? 'FALCONS' : m.b;
+    const mid = hasScore ? m.sa + ':' + m.sb : 'VS';
+    heroInner = `<div class="vs"><div class="team">${esc(fa)}</div>
+      <div class="vs-mid">${esc(mid)}</div>
+      <div class="team">${esc(fb)}</div></div>
+      <div class="hero-sub">${esc(ev.name)} · ${esc(m.bo || '')}</div>
+      ${playing ? '<div class="hero-note">LIVE 正在进行</div>' : ''}`;
+  }else if(d.next_match){
     heroTag = '下一场比赛'; target = d.next_match.datetime;
     heroInner = `<div class="vs"><div class="team">FALCONS</div><div class="vs-mid">VS</div>
       <div class="team">${esc(d.next_match.opponent)}</div></div>
@@ -1868,6 +1901,20 @@ async function boot(){
   const st = document.getElementById('liveStatus');
   sync(st);
   setInterval(() => sync(st), 60000);   // 远端开赛时间/赛程等一旦变动，首页自动刷新（与二级页一致），无需手动点刷新
+
+  /* 赛事（event.json）同步：首屏 hero 的「正在进行 / 下一场」与实时比分要跟着走。
+     内置数据是构建时快照，不同步的话开赛后 hero 会一直停在旧状态。 */
+  let _evFp = eventFingerprint(evData());
+  const evSync = async () => {
+    const r = await pullEvent();
+    if(!r) return;                       // 联网失败就保留上次数据，下轮再试
+    EV_FRESH = r.data;
+    const fp = eventFingerprint(r.data);
+    if(fp !== _evFp){ _evFp = fp; render(); fx(); }
+  };
+  evSync();
+  setInterval(evSync, 60000);
+
   pullPhotos().then(tag => {
     if(tag){ render(); fx(); if(st) st.textContent = '● 照片已更新（' + tag + '）'; }
   });
@@ -2285,8 +2332,10 @@ function groupsSec(e){
 }
 
 function brkMatch(m, TM){
+  // 同时进行中：开赛时间已过但未超时，即便已经有比分也要算 LIVE，
+  // 否则正在打的比赛会被当成已结束（只有胜负样式、没有 LIVE 标记）
   const played = m.a.score !== null || m.b.score !== null;
-  const live = !played && isLive(m.ts);
+  const live = m.ts ? isLive(m.ts) : false;
   const row = (t, isA) => {
     let cls = 'brk-o';
     if(played) cls += t.win ? ' w' : ' l';
@@ -2338,8 +2387,9 @@ function scheduleSec(e){
   });
   const body = days.map(d => `<div class="sch-d">${esc(d.k)}</div>
     ${d.rows.map(m => {
+      // 同时进行中：有时间窗就算 LIVE，不等到出比分才判定（见 brkMatch 同款逻辑）
       const played = m.sa !== null && m.sb !== null;
-      const live = !played && isLive(m.ts);
+      const live = m.ts ? isLive(m.ts) : false;
       const wA = played && m.sa > m.sb;
       const nA = wA ? '<b>' + esc(m.a) + '</b>' : esc(m.a);
       const nB = (played && !wA) ? '<b>' + esc(m.b) + '</b>' : esc(m.b);

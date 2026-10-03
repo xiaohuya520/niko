@@ -257,23 +257,39 @@ def parse_upcoming(h: str, limit=16):
         if not ts:
             continue
         stage = re.search(r'match-info-stage">([^<]*)<', blk)
-        # 两行 match-info-opponent-row，各含一个 block-team；title=全名，文本=简称
-        names = []
-        for tm in re.finditer(r'<a href="/counterstrike/[^"]+" title="([^"]+)"', blk):
-            n = H.unescape(tm.group(1)).strip()
-            if n and n not in names:
-                names.append(n)
-            if len(names) == 2:
+        # 强判据：队伍**只**从 match-info-opponent-row 里取，且同时取该行的比分。
+        # 不能在整个 blk 里扫 <a>——右上角 match-info-stream-buttons 里全是
+        # Special:Stream/twitch| youtube 直播台链接，会被当成参赛队，
+        # 2026-10-03 实测灌出 "Special:Stream/twitch/ESL Counter-Strike" 这种脏对阵。
+        sides = []
+        for row in re.split(r'<div class="match-info-opponent-row(?:"|\s)', blk)[1:3]:
+            nm = ""
+            for am in re.finditer(r'<a href="/counterstrike/([^"#?]+)"[^>]*title="([^"]*)"', row):
+                path, title = am.group(1), H.unescape(am.group(2)).strip()
+                # 去掉 MediaWiki 命名空间（Special/Category/File/Template…）与含冒号的伪链接
+                if ":" in path:
+                    continue
+                nm = re.sub(r"^Team\s+", "", title or path.replace("_", " ").strip())
                 break
-        if len(names) < 2 or names[0].upper() == "TBD" or names[1].upper() == "TBD":
+            if not nm or nm.upper() in ("TBD", "TO BE DETERMINED", "–", "-"):
+                continue
+            sc = re.search(r'match-info-opponent-score[^>]*>\s*(\d+)', row)
+            sides.append({"name": nm, "score": int(sc.group(1)) if sc else None})
+        if len(sides) < 2:
             continue
         bo = re.search(r'\((Bo\d)\)', blk)
+        wa = wb = False
+        sa, sb = sides[0]["score"], sides[1]["score"]
+        if sa is not None and sb is not None and sa != sb:
+            wa, wb = sa > sb, sb > sa
         out.append({
             "stage": stage.group(1).strip() if stage else "",
             "bo": bo.group(1) if bo else default_bo,
             "ts": int(ts.group(1)),
-            "a": {"name": names[0], "full": names[0], "short": "", "score": None, "win": False},
-            "b": {"name": names[1], "full": names[1], "short": "", "score": None, "win": False},
+            "a": {"name": sides[0]["name"], "full": sides[0]["name"], "short": "",
+                  "score": sa, "win": wa},
+            "b": {"name": sides[1]["name"], "full": sides[1]["name"], "short": "",
+                  "score": sb, "win": wb},
         })
     return out[:limit]
 
