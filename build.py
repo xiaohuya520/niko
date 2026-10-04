@@ -187,6 +187,14 @@ a{color:inherit;text-decoration:none}
 .team{font-size:32px;font-weight:700;letter-spacing:.03em;color:#fff;font-family:var(--tech);
   text-shadow:0 2px 16px rgba(0,0,0,.28)}
 .team.tbd{color:rgba(255,255,255,.62)}
+/* 下一场比赛：双方队标 + 队名 */
+.hero-team{display:flex;flex-direction:column;align-items:center;gap:9px;width:104px}
+.hero-team img{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 5px 16px rgba(0,0,0,.34))}
+.hero-logo-ph{width:66px;height:66px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-family:var(--tech);font-size:22px;font-weight:700;color:#fff;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
+.hero-team b{font-family:var(--tech);font-size:17px;font-weight:700;line-height:1.25;letter-spacing:.01em;
+  color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.3);text-align:center}
 .vs-mid{font-family:var(--mono);font-size:14px;color:#fff;font-weight:600;letter-spacing:.1em;
   background:rgba(255,255,255,.18);padding:5px 13px;border-radius:999px;backdrop-filter:blur(4px)}
 .hero-sub{font-family:var(--mono);font-size:13px;color:rgba(255,255,255,.85);letter-spacing:.06em}
@@ -816,6 +824,9 @@ body.leaving .hud,body.leaving .arms{opacity:0;transition:opacity .2s ease}
   .brand b{font-size:21px}
   .prof .nick{font-size:23px}
   .team{font-size:26px}
+  .hero-team{width:88px;gap:7px}
+  .hero-team img,.hero-logo-ph{width:56px;height:56px}
+  .hero-team b{font-size:15px}
   .cd b{font-size:34px}
   .row{padding:12px 12px;gap:10px}
   .res{width:28px;height:28px;font-size:12px}
@@ -1560,18 +1571,34 @@ function seasonBoardHtml(LIST, YS){
   return `<div class="grid">${cellHtml}</div>${poolHtml}${evHtml}`;
 }
 
-/* 首屏 hero 的实时对阵：优先「正在进行」，同级里优先 Falcons 参赛的那场。
-   数据源是 event.json（每 60 秒同步），所以赛事一开打这里就会显示对阵与比分，
-   不会再停留在「对阵尚未公布」（那是 data.json 的 next_match 为空时的旧回退）。 */
+/* 队名 -> 队标（容错匹配：忽略大小写/符号，允许 Esports 之类的后缀差异与前缀包含）。
+   event.json 里 teams[].logo 是 Liquipedia 下发的队标，路径形如 assets/teams/xxx.png */
+function teamLogo(ev, name){
+  if(!ev || !name) return '';
+  const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const n = norm(name);
+  if(!n) return '';
+  const ts = ev.teams || [];
+  let hit = ts.find(t => norm(t.name) === n);
+  if(!hit) hit = ts.find(t => { const k = norm(t.name); return k && (k.indexOf(n) === 0 || n.indexOf(k) === 0); });
+  return hit ? (hit.logo || '') : '';
+}
+
+/* 首屏 hero 的「下一场比赛」：优先正在进行的，其次最近一场未开打的；
+   同级里优先 NiKo（Falcons）参赛的那场。数据源是 event.json（每 60 秒同步），
+   所以这里给的是**具体某一场比赛**（双方队名 + 队标 + 该场开赛时间），
+   倒计时也是到这一场，而不是到整个赛事开幕。 */
 function liveFixture(){
   const EVS = (((evData && evData()) || {}).events) || [];
   const now = Date.now() / 1000;
   const cand = [];
   EVS.forEach(e => (e.schedule || []).forEach(m => {
     if(!m.ts || !m.a || !m.b) return;
+    if(/^\s*$/.test(m.a) || /^\s*$/.test(m.b)) return;
+    if(/^tbd$/i.test(m.a) || /^tbd$/i.test(m.b)) return;   // 对阵未定的不参与
     const inv = /falcon/i.test(m.a) || /falcon/i.test(m.b);
-    if(isLive(m.ts)) cand.push({ pri: inv ? 0 : 1, e, m, ts: m.ts });
-    else if(m.ts > now) cand.push({ pri: inv ? 10 : 11, e, m, ts: m.ts });
+    if(isLive(m.ts)) cand.push({ pri: inv ? 0 : 1, e, m, ts: m.ts, playing: true });
+    else if(m.ts > now) cand.push({ pri: inv ? 10 : 11, e, m, ts: m.ts, playing: false });
   }));
   if(!cand.length) return null;
   cand.sort((x, y) => x.pri - y.pri || x.ts - y.ts);
@@ -1584,21 +1611,29 @@ function render(){
   const maxR = Math.max(...LIST.flatMap(m => (m.niko && m.niko.ratings) || [0]), 1);
 
   let heroTag, heroInner, target = null;
-  // ① 赛事中心的实时对阵（进行中 > 下一场，同级优先 Falcons 参赛）
+  // ① 下一场比赛（赛事中心的实时赛程：进行中 > 最近未开打；同级优先 Falcons 参赛）
   const LF = (typeof liveFixture === 'function') ? liveFixture() : null;
   if(LF){
-    const m = LF.m, ev = LF.e, playing = isLive(m.ts);
+    const m = LF.m, ev = LF.e, playing = !!LF.playing;
     const hasScore = m.sa !== null && m.sb !== null && m.sa !== undefined;
     heroTag = playing ? (hasScore ? '正在进行' : '即将开始') : '下一场比赛';
     target = new Date(m.ts * 1000).toISOString();
-    const fa = /falcon/i.test(m.a) ? 'FALCONS' : m.a;
-    const fb = /falcon/i.test(m.b) ? 'FALCONS' : m.b;
-    const mid = hasScore ? m.sa + ':' + m.sb : 'VS';
-    heroInner = `<div class="vs"><div class="team">${esc(fa)}</div>
+    // 双方队标（取不到时用队名首字母占位）
+    const side = name => {
+      const lg = teamLogo(ev, name);
+      return '<div class="hero-team">'
+        + (lg ? `<img src="${esc(lg)}" alt="" loading="lazy">`
+              : `<i class="hero-logo-ph">${esc(ini(name))}</i>`)
+        + `<b>${esc(name)}</b></div>`;
+    };
+    const mid = hasScore ? (m.sa + ':' + m.sb) : 'VS';
+    const meta = [esc(ev.name), esc(m.round || '小组赛'), esc(boText(m.bo))].filter(Boolean).join(' · ');
+    heroInner = `<div class="vs">${side(m.a)}
       <div class="vs-mid">${esc(mid)}</div>
-      <div class="team">${esc(fb)}</div></div>
-      <div class="hero-sub">${esc(ev.name)} · ${esc(m.bo || '')}</div>
-      ${playing ? '<div class="hero-note">LIVE 正在进行</div>' : ''}`;
+      ${side(m.b)}</div>
+      <div class="hero-sub">${meta}</div>
+      ${playing ? '<div class="hero-note">LIVE 正在进行</div>'
+                : '<div class="hero-note">距本场开赛</div>'}`;
   }else if(d.next_match){
     heroTag = '下一场比赛'; target = d.next_match.datetime;
     heroInner = `<div class="vs"><div class="team">FALCONS</div><div class="vs-mid">VS</div>
@@ -1678,10 +1713,12 @@ function render(){
     </div>` : '<div class="empty">暂无准星数据</div>';
 
   const FE = featuredEvent();
-  const heroOpen = FE
-    ? `<a class="hero hero-link" href="event.html?id=${encodeURIComponent(FE.id)}">`
+  // hero 卡片点击直达「下一场比赛」所属赛事的赛事中心（没有具体对阵时回退到推荐赛事）
+  const heroEv = (typeof LF !== 'undefined' && LF) ? LF.e : FE;
+  const heroOpen = heroEv
+    ? `<a class="hero hero-link" href="event.html?id=${encodeURIComponent(heroEv.id)}">`
     : '<div class="hero">';
-  const heroClose = FE ? '</a>' : '</div>';
+  const heroClose = heroEv ? '</a>' : '</div>';
 
   const rc = LIST.filter(m => ((m.niko || {}).ratings || []).length).length;
   const rateNote = rc < LIST.length
